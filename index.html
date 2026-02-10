@@ -23,18 +23,17 @@
         .border-p { border-color: var(--p-color) !important; }
         .ring-p { --tw-ring-color: var(--p-color) !important; }
 
-        /* 動態文字大小縮放系統 */
+        /* 動態文字大小縮放系統 (對標需求: 0.75, 1, 1.25) */
         .app-font-small { font-size: 12px; }
         .app-font-medium { font-size: 16px; }
         .app-font-large { font-size: 20px; }
         
-        /* 基於比例的標題縮放 */
-        .app-font-small h1 { font-size: 1.2rem; }
-        .app-font-medium h1 { font-size: 1.5rem; }
-        .app-font-large h1 { font-size: 1.8rem; }
+        /* 比例尺寸微調 */
+        .app-font-small h1 { font-size: 1.25rem; }
+        .app-font-large h1 { font-size: 1.75rem; }
 
         .card-shadow { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
-        .safe-pb { padding-bottom: calc(8rem + env(safe-area-inset-bottom)); }
+        .safe-pb { padding-bottom: calc(8.5rem + env(safe-area-inset-bottom)); }
 
         .pie-chart {
             width: 150px;
@@ -63,6 +62,13 @@
             overflow: hidden;
         }
         .nav-active { font-weight: 900; }
+
+        /* 防止橫向滑動且允許縱向滑動關閉手勢 */
+        .modal-scrollable {
+            touch-action: pan-y;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body class="bg-slate-200 text-slate-900 antialiased overflow-hidden">
@@ -174,13 +180,13 @@
                         </div>
                         <div class="flex justify-between text-[0.6em] font-bold">
                             <span class="opacity-40 uppercase">{{ t('last_sync') }}: {{ lastSyncTime || '---' }}</span>
-                            <span class="text-indigo-400 font-black italic uppercase tracking-widest">AI AI SEARCH ENGINE</span>
+                            <span class="text-indigo-400 font-black italic uppercase tracking-widest font-black">TWSE / AI REALTIME</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="space-y-3">
-                    <div v-for="(stk, idx) in stockPortfolio" :key="idx" class="bg-white p-4 rounded-3xl border border-slate-100 card-shadow flex justify-between items-center group">
+                    <div v-for="(stk, idx) in stockPortfolio" :key="idx" class="bg-white p-4 rounded-3xl border border-slate-100 card-shadow flex justify-between items-center group transition-all">
                         <div class="flex items-center min-w-0 flex-1">
                             <div class="w-11 h-11 rounded-2xl bg-slate-50 flex items-center justify-center mr-4 text-[1.25em] font-bold text-p shadow-inner">{{ stk.name[0] }}</div>
                             <div class="min-w-0 flex-1">
@@ -322,8 +328,12 @@
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
                 <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
-                <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[96vh] overflow-y-auto shadow-2xl hide-scrollbar">
-                    <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8"></div>
+                <!-- 加入觸控監聽與下滑關閉邏輯 -->
+                <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[96vh] overflow-y-auto shadow-2xl hide-scrollbar modal-scrollable"
+                    @touchstart="handleModalTouchStart"
+                    @touchend="handleModalTouchEnd"
+                >
+                    <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div>
                     <div class="flex justify-between items-center mb-6 px-1">
                         <h2 class="text-[1.3em] font-black text-slate-800">{{ currentMonth+1 }}/{{ selectedDay }} {{ t('new_record') }}</h2>
                         <button @click="saveRecord" :style="{ backgroundColor: settings.themeColor }" class="text-white px-10 py-3 rounded-full font-black shadow-xl active:scale-95 transition-all text-[0.8em]">{{ t('save') }}</button>
@@ -358,8 +368,8 @@
                             <div class="flex justify-between items-center px-1">
                                 <span class="text-[10px] font-black text-slate-400 tracking-widest uppercase">{{ t('add_new_line') }}</span>
                                 <div class="flex bg-white p-1 rounded-full shadow-sm text-[9px] font-black border border-slate-100 overflow-hidden">
-                                    <button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-red-500 text-white shadow-md' : 'text-red-400'" class="px-6 py-2.5 transition-all text-[0.9em]">{{ t('expense') }}</button>
-                                    <button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-green-500 text-white shadow-md' : 'text-green-400'" class="px-6 py-2.5 transition-all text-[0.9em]">{{ t('income') }}</button>
+                                    <button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-red-500 text-white shadow-md' : 'text-red-400'" class="px-6 py-2.5 transition-all">{{ t('expense') }}</button>
+                                    <button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-green-500 text-white shadow-md' : 'text-green-400'" class="px-6 py-2.5 transition-all">{{ t('income') }}</button>
                                 </div>
                             </div>
                             <div class="grid grid-cols-4 gap-3">
@@ -394,6 +404,7 @@
 
                     <!-- 日誌輸入分頁 -->
                     <div v-if="editTab === 'diary'" class="space-y-8 pb-24 px-1">
+                        <!-- 錄音 -->
                         <div class="flex items-center justify-between bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100">
                             <div class="flex items-center">
                                 <div class="w-12 h-12 rounded-2xl bg-white shadow-md flex items-center justify-center mr-4" :class="{'recording-pulse': isRecording}">
@@ -411,6 +422,7 @@
                             </div>
                         </div>
 
+                        <!-- 照片 -->
                         <div class="space-y-4">
                             <div class="flex justify-between items-center px-1">
                                 <label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ t('photo') }} ({{ form.photos?.length || 0 }}/10)</label>
@@ -427,6 +439,7 @@
                             </div>
                         </div>
 
+                        <!-- 足跡 -->
                         <div class="space-y-4">
                             <div class="flex justify-between items-center px-1">
                                 <label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ t('location_map') }}</label>
@@ -465,7 +478,7 @@
             </div>
         </transition>
 
-        <!-- 分類編輯彈窗 (新增與編輯) -->
+        <!-- 分類編輯彈窗 -->
         <transition name="fade">
             <div v-if="showAddCategory || showEditCategory" class="fixed inset-0 z-[200] flex items-center justify-center p-6">
                 <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeCategoryModal"></div>
@@ -485,29 +498,31 @@
             </div>
         </transition>
 
-        <!-- 底部導覽列 (5 功能切換) -->
+        <!-- 底部導覽列 (與主題色連動) -->
         <nav class="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-2xl border-t border-slate-100 h-24 tab-bar z-40 px-3 transition-all shadow-lg flex items-center shrink-0">
             <div class="flex w-full items-center justify-around">
-                <button @click="currentView = 'ledger'" :style="currentView === 'ledger' ? { color: settings.themeColor } : {}" class="flex flex-col items-center transition-all flex-1" :class="currentView === 'ledger' ? 'nav-active scale-110' : 'text-slate-300'">
-                    <i data-lucide="calendar" class="w-6 h-6"></i>
-                    <span class="text-[0.6em] mt-1.5 uppercase font-black tracking-tighter">{{ t('ledger') }}</span>
+                <button v-for="v in ['ledger', 'stocks']" :key="v" @click="currentView = v"
+                    :style="currentView === v ? { color: settings.themeColor } : {}"
+                    class="flex flex-col items-center transition-all flex-1"
+                    :class="currentView === v ? 'nav-active scale-110' : 'text-slate-300'"
+                >
+                    <i :data-lucide="v === 'ledger' ? 'calendar' : 'trending-up'" class="w-6 h-6"></i>
+                    <span class="text-[0.55em] mt-1.5 uppercase font-black tracking-tighter">{{ t(v) }}</span>
                 </button>
-                <button @click="currentView = 'stocks'" :style="currentView === 'stocks' ? { color: settings.themeColor } : {}" class="flex flex-col items-center transition-all flex-1" :class="currentView === 'stocks' ? 'nav-active scale-110' : 'text-slate-300'">
-                    <i data-lucide="trending-up" class="w-6 h-6"></i>
-                    <span class="text-[0.6em] mt-1.5 uppercase font-black tracking-tighter">{{ t('stocks') }}</span>
-                </button>
+                
                 <div class="flex justify-center relative flex-1">
                     <button @click="openAddModal()" :style="{ backgroundColor: settings.themeColor }" class="text-white w-16 h-16 rounded-[2.2rem] shadow-xl border-[6px] border-white flex items-center justify-center -translate-y-8 active:scale-90 transition-all hover:rotate-90">
                         <i data-lucide="plus" class="w-8 h-8 text-white"></i>
                     </button>
                 </div>
-                <button @click="currentView = 'charts'" :style="currentView === 'charts' ? { color: settings.themeColor } : {}" class="flex flex-col items-center transition-all flex-1" :class="currentView === 'charts' ? 'nav-active scale-110' : 'text-slate-300'">
-                    <i data-lucide="pie-chart" class="w-6 h-6"></i>
-                    <span class="text-[0.6em] mt-1.5 uppercase font-black tracking-tighter">{{ t('charts') }}</span>
-                </button>
-                <button @click="currentView = 'settings'" :style="currentView === 'settings' ? { color: settings.themeColor } : {}" class="flex flex-col items-center transition-all flex-1" :class="currentView === 'settings' ? 'nav-active scale-110' : 'text-slate-300'">
-                    <i data-lucide="settings" class="w-6 h-6"></i>
-                    <span class="text-[0.6em] mt-1.5 uppercase font-black tracking-tighter">{{ t('settings') }}</span>
+
+                <button v-for="v in ['charts', 'settings']" :key="v" @click="currentView = v"
+                    :style="currentView === v ? { color: settings.themeColor } : {}"
+                    class="flex flex-col items-center transition-all flex-1"
+                    :class="currentView === v ? 'nav-active scale-110' : 'text-slate-300'"
+                >
+                    <i :data-lucide="v === 'charts' ? 'pie-chart' : 'settings'" class="w-6 h-6"></i>
+                    <span class="text-[0.55em] mt-1.5 uppercase font-black tracking-tighter">{{ t(v) }}</span>
                 </button>
             </div>
         </nav>
@@ -535,7 +550,7 @@ createApp({
         let mediaRecorder = null;
         let audioChunks = [];
 
-        // 1. 狀態初始化
+        // 1. 狀態初始化 (解決 ReferenceError)
         const today = new Date();
         const currentYear = ref(today.getFullYear());
         const currentMonth = ref(today.getMonth());
@@ -587,12 +602,12 @@ createApp({
 
         const t = (key) => dictionary[settings.value.lang][key] || key;
 
-        // 2. 日期邏輯
+        // 2. 日期與行事曆計算
         const daysInMonth = computed(() => new Date(currentYear.value, currentMonth.value + 1, 0).getDate());
         const firstDayOfMonth = computed(() => new Date(currentYear.value, currentMonth.value, 1).getDay());
         const selectedDateString = computed(() => `${currentYear.value}${t('year')}${currentMonth.value + 1}${t('month')}${selectedDay.value}日`);
 
-        // 3. 分類管理
+        // 3. 分類管理 (增加圖標內容)
         const categories = ref([
             { name: '餐飲', icon: '🍲', type: 'expense' }, { name: '交通', icon: '🚗', type: 'expense' },
             { name: '購物', icon: '🛍️', type: 'expense' }, { name: '娛樂', icon: '🎬', type: 'expense' },
@@ -600,10 +615,11 @@ createApp({
             { name: '人情', icon: '🎁', type: 'expense' }, { name: '薪資', icon: '💰', type: 'income' },
             { name: '紅利', icon: '🧧', type: 'income' }, { name: '其它', icon: '📦', type: 'expense' }
         ]);
-        const iconPool = ['🍲', '☕', '🍺', '🍰', '🚗', '🚲', '⛽', '✈️', '🛍️', '👕', '📱', '🎮', '📚', '💊', '🩺', '🏠', '🛋️', '🐈', '🐶', '🌿', '💰', '🏦', '💼', '🎁', '🍷', '🚬', '⛪', '🚕', '🎠', '🎨', '🎻', '🏸', '🛀', '🧼', '🔭', '🍔', '🍟', '🍣'];
+        const iconPool = ['🍲', '☕', '🍺', '🍰', '🚗', '🚲', '⛽', '✈️', '🛍️', '👕', '📱', '🎮', '📚', '💊', '🩺', '🏠', '🛋️', '🐈', '🐶', '🌿', '💰', '🏦', '💼', '🎁', '🍷', '🚬', '⛪', '🚕', '🎠', '🎨', '🎻', '🏸', '🛀', '🧼', '🔭', '🍔', '🍟', '🍣', '🍼', '👶', '🐾', '💈', '💇', '💄'];
         const categoryForm = ref({ name: '', icon: '🍲' });
         let targetCategory = null;
 
+        // 長按分類編輯邏輯
         let longPressTimer = null;
         const startCategoryLongPress = (cat) => {
             longPressTimer = setTimeout(() => {
@@ -641,21 +657,38 @@ createApp({
         const newRecord = ref({ type: 'expense', amount: null, category: '餐飲', note: '' });
         const newStock = ref({ name: '', qty: null, buyPrice: null });
 
-        // --- 修正後的股市統計 ---
+        // --- 強化重試邏輯與 AI 股市統計 ---
+        const callGeminiWithRetry = async (symbols, timeStr) => {
+            const system = `You are a real-time financial analyst. SEARCH GOOGLE for the ABSOLUTE LATEST market prices of provided stocks. Respond ONLY with clean JSON: {"2330": 1880}. Time: ${timeStr}.`;
+            const maxRetries = 5;
+            let attempt = 0;
+
+            while (attempt < maxRetries) {
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: symbols }] }], systemInstruction: { parts: [{ text: system }] }, tools: [{ "google_search": {} }] })
+                    });
+                    if (!response.ok) throw new Error('API Error');
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                } catch (e) {
+                    attempt++;
+                    if (attempt === maxRetries) throw e;
+                    await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+                }
+            }
+        };
+
         const updatePortfolioPrices = async () => {
             if (!stockPortfolio.value.length) return;
             isAILoading.value = true;
             try {
                 const now = new Date();
                 const symbols = stockPortfolio.value.map(s => s.name).join(', ');
-                const system = `You are a real-time financial analyst. Search Google for LATEST market prices of provided stocks. Respond ONLY with clean JSON: {"2330": 1880}. Time: ${now.toLocaleString()}.`;
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: symbols }] }], systemInstruction: { parts: [{ text: system }] }, tools: [{ "google_search": {} }] })
-                });
-                const data = await response.json();
-                let resText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                const resText = await callGeminiWithRetry(symbols, now.toLocaleString());
+                
                 const jsonMatch = resText.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     const priceMap = JSON.parse(jsonMatch[0]);
@@ -665,8 +698,24 @@ createApp({
                     });
                     lastSyncTime.value = now.toLocaleTimeString();
                 }
-            } catch (e) { console.error("Stock Update Error:", e); }
+            } catch (e) { 
+                console.error("Stock Update Error:", e);
+                // 這裡可以加入 user-friendly 錯誤通知 UI
+            }
             isAILoading.value = false;
+        };
+
+        // --- 手勢操作: 下滑關閉彈窗 ---
+        const touchStartY = ref(0);
+        const handleModalTouchStart = (e) => { touchStartY.value = e.touches[0].clientY; };
+        const handleModalTouchEnd = (e) => {
+            const touchEndY = e.changedTouches[0].clientY;
+            const deltaY = touchEndY - touchStartY.value;
+            const modalContent = e.currentTarget;
+            // 只有在 modal 滾動到最頂端且下滑超過 150px 時才關閉
+            if (modalContent.scrollTop <= 0 && deltaY > 150) {
+                showAddModal.value = false;
+            }
         };
 
         // 財務統計屬性
@@ -698,7 +747,7 @@ createApp({
             return parts.length ? `conic-gradient(${parts.join(', ')})` : '#f1f5f9';
         });
 
-        // 紀錄與多媒體
+        // 輔助功能
         const startRecording = async () => {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
@@ -732,7 +781,6 @@ createApp({
 
         const addNewRecord = () => { if (newRecord.value.amount) { form.value.records.push({ ...newRecord.value }); newRecord.value.amount = null; newRecord.value.note = ''; } };
         const addStockItem = () => { if (newStock.value.name) { stockPortfolio.value.push({ ...newStock.value, currentPrice: newStock.value.buyPrice || 0 }); newStock.value = { name: '', qty: null, buyPrice: null }; } };
-        
         const formatNumber = (num) => Math.floor(num || 0).toLocaleString();
         const updateIcons = () => nextTick(() => lucide.createIcons());
         const openGoogleMaps = (n) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(n)}`, '_blank');
@@ -753,7 +801,8 @@ createApp({
             addNewRecord, getCategoryIcon: (n) => categories.value.find(c => c.name === n)?.icon || '❓', iconPool, categoryForm, confirmCategoryAction, closeCategoryModal,
             startCategoryLongPress, endCategoryLongPress, getPhotoGridClass: (c) => c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48'),
             stockPortfolio, newStock, addStockItem, updatePortfolioPrices, stockTotalValue, stockTotalProfit, isAILoading, lastSyncTime, locationSearch, addLocation,
-            isRecording, startRecording, stopRecording, playAudio, openGoogleMaps, openGoogleMapsSearch, handleMultiPhotoUpload, netWorth
+            isRecording, startRecording, stopRecording, playAudio, openGoogleMaps, openGoogleMapsSearch, handleMultiPhotoUpload, netWorth,
+            handleModalTouchStart, handleModalTouchEnd
         };
     }
 }).mount('#app');
