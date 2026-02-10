@@ -22,7 +22,7 @@
             -webkit-user-select: none;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
-            background-color: #e2e8f0;
+            background-color: #f1f5f9;
         }
 
         input, textarea, select {
@@ -30,7 +30,6 @@
             -webkit-user-select: text !important;
         }
 
-        /* 全域主題色彩連動 */
         .text-p { color: var(--p-color) !important; }
         .bg-p { background-color: var(--p-color) !important; }
         .border-p { border-color: var(--p-color) !important; }
@@ -59,7 +58,17 @@
         .recording-pulse { animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } }
 
-        /* 分類按鈕統一置中 */
+        .modal-scrollable {
+            touch-action: pan-y;
+            overflow-x: hidden;
+            overflow-y: auto;
+            will-change: transform, opacity;
+        }
+        .modal-transition {
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
+        }
+
+        .picker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
         .category-btn {
             display: flex;
             flex-direction: column;
@@ -72,39 +81,90 @@
         }
         .nav-active { font-weight: 900; }
 
-        /* 動態下拉關閉樣式 */
-        .modal-scrollable {
-            touch-action: pan-y;
-            overflow-x: hidden;
-            overflow-y: auto;
-            will-change: transform, opacity;
-        }
-        .modal-transition {
-            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
-        }
+        /* 通知列動畫 */
+        .slide-down-enter-active, .slide-down-leave-active { transition: all 0.3s ease; }
+        .slide-down-enter-from, .slide-down-leave-to { transform: translateY(-100%); opacity: 0; }
     </style>
 </head>
-<body class="antialiased overflow-hidden">
+<body class="antialiased overflow-hidden text-slate-900">
 
 <div id="app" v-cloak class="flex justify-center items-center app-container" :style="{'--p-color': settings.themeColor}">
-    <div :class="['w-full sm:max-w-md h-full bg-white shadow-2xl relative flex flex-col overflow-hidden transition-all duration-300', 'app-font-' + settings.fontSize]">
+    <div :class="['w-full sm:max-w-md h-full bg-slate-50 shadow-2xl relative flex flex-col overflow-hidden transition-all duration-300', 'app-font-' + settings.fontSize]">
         
-        <!-- 頂部標題區域 -->
-        <header :style="{ backgroundColor: settings.themeColor }" class="p-4 sm:p-5 text-white shadow-md shrink-0 z-20 transition-all duration-500">
-            <div class="flex justify-between items-center">
-                <h1 class="font-black tracking-tight leading-tight" style="font-size: 1.5em">{{ t(currentView) }}</h1>
-                <div class="flex flex-col items-end">
-                    <span class="text-[0.6em] font-bold opacity-80">{{ currentYear }}{{ t('year') }}</span>
-                    <span class="text-[1em] leading-none font-black">{{ currentMonth + 1 }}{{ t('month') }}</span>
+        <!-- 通知列 (Error Bar) -->
+        <transition name="slide-down">
+            <div v-if="errorMsg" class="absolute top-0 left-0 right-0 z-[100] bg-red-500 text-white py-3 px-6 text-center font-black text-xs shadow-xl flex items-center justify-center gap-2">
+                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                {{ errorMsg }}
+            </div>
+        </transition>
+
+        <!-- 標題區域 -->
+        <header :style="{ backgroundColor: settings.themeColor }" class="p-4 text-white shadow-md shrink-0 z-50 transition-all duration-500">
+            <!-- 帳本頁面：分列顯示年月 -->
+            <div v-if="currentView === 'ledger'" class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <button @click="changeYear(-1)" class="p-2 active:opacity-50 transition-all"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                    <span @click="showYearPicker = true" class="text-lg font-black tracking-widest cursor-pointer active:opacity-70">{{ currentYear }} {{ t('year') }}</span>
+                    <button @click="changeYear(1)" class="p-2 active:opacity-50 transition-all"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                </div>
+                <div class="flex items-center justify-between">
+                    <button @click="changeMonth(-1)" class="p-2 active:opacity-50 transition-all"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                    <span @click="showMonthPicker = true" class="text-xl font-black tracking-widest cursor-pointer active:opacity-70">{{ currentMonth + 1 }} {{ t('month') }}</span>
+                    <button @click="changeMonth(1)" class="p-2 active:opacity-50 transition-all"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+            <!-- 其他頁面：左側 Icon，右上日期 -->
+            <div v-else class="flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-sm">
+                        <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" stroke="white" stroke-width="2.5"/>
+                        <path d="M12 8V16M8 12H16" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                        <circle cx="12" cy="12" r="3" fill="white" fill-opacity="0.3"/>
+                    </svg>
+                    <h1 class="font-black tracking-tight" style="font-size: 1.3em">{{ t(currentView) }}</h1>
+                </div>
+                <div @click="showYearPicker = true" class="text-right cursor-pointer active:opacity-60 bg-white/10 px-3 py-1 rounded-xl backdrop-blur-sm border border-white/10">
+                    <p class="text-[0.6em] font-bold opacity-70">{{ currentYear }}{{ t('year') }}</p>
+                    <p class="text-[1.1em] font-black leading-none">{{ currentMonth + 1 }}{{ t('month') }}</p>
                 </div>
             </div>
         </header>
 
-        <!-- 主要內容 -->
+        <!-- 主要內容區 -->
         <main class="flex-1 overflow-y-auto hide-scrollbar bg-slate-50 safe-pb">
             
-            <!-- 視圖 1: 帳本 -->
+            <!-- 年份/月份選單彈窗 -->
+            <div v-if="showYearPicker || showMonthPicker" class="absolute inset-0 z-[60] flex items-center justify-center p-6">
+                <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showYearPicker = false; showMonthPicker = false"></div>
+                <div class="relative w-full max-w-xs bg-white rounded-[2.5rem] p-6 shadow-2xl animate-in zoom-in duration-200">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h3 class="font-black text-slate-400 text-xs uppercase tracking-widest">
+                            {{ showYearPicker ? t('choose_year') : t('choose_month') }}
+                        </h3>
+                        <div class="flex gap-2">
+                            <button @click="showYearPicker = true; showMonthPicker = false" :class="showYearPicker ? 'text-p' : 'text-slate-300'"><i data-lucide="calendar" class="w-4 h-4"></i></button>
+                            <button @click="showMonthPicker = true; showYearPicker = false" :class="showMonthPicker ? 'text-p' : 'text-slate-300'"><i data-lucide="layers" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                    <div class="picker-grid max-h-60 overflow-y-auto hide-scrollbar">
+                        <template v-if="showYearPicker">
+                            <button v-for="y in yearRange" :key="y" @click="currentYear = y; showYearPicker = false; showMonthPicker = true" 
+                                :class="currentYear === y ? 'bg-p text-white shadow-lg scale-105' : 'bg-slate-50 text-slate-600'"
+                                class="py-3 rounded-xl font-black transition-all">{{ y }}</button>
+                        </template>
+                        <template v-if="showMonthPicker">
+                            <button v-for="m in 12" :key="m" @click="currentMonth = m-1; showMonthPicker = false" 
+                                :class="currentMonth === m-1 ? 'bg-p text-white shadow-lg scale-105' : 'bg-slate-50 text-slate-600'"
+                                class="py-3 rounded-xl font-black transition-all">{{ m }}{{ t('month') }}</button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分頁：帳本 -->
             <section v-if="currentView === 'ledger'" class="animate-in fade-in duration-300">
+                <!-- 日曆網格 -->
                 <div class="p-4 bg-white border-b sticky top-0 z-10 shadow-sm">
                     <div class="calendar-grid text-center text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">
                         <div v-for="d in t('weekdays')" :key="d">{{ d }}</div>
@@ -126,102 +186,106 @@
                 </div>
 
                 <div class="p-4 space-y-4">
-                    <h3 class="text-[0.7em] font-black text-slate-400 uppercase tracking-wider px-1">{{ selectedDateString }}</h3>
+                    <h3 class="text-[0.75em] font-black text-slate-400 uppercase tracking-wider px-1">{{ selectedDateString }}</h3>
 
                     <div v-if="currentDayData" class="space-y-4">
+                        <!-- 當日財務卡片 -->
                         <div @click="openAddModal('finance')" class="bg-white p-5 rounded-[1.5rem] card-shadow border border-slate-100 cursor-pointer active:scale-[0.98] transition-all">
-                            <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-50">
-                                <span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_finance') }}</span>
-                                <div :class="dayNetBalance >= 0 ? 'text-green-600' : 'text-red-600'" class="text-[1.2em] font-black font-mono">
-                                    {{ dayNetBalance >= 0 ? '+' : '' }}{{ formatNumber(dayNetBalance) }}
+                            <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-2">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="circle-dollar-sign" class="w-4 h-4 text-p"></i>
+                                    <span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_finance') }}</span>
                                 </div>
+                                <span class="text-[0.7em] font-bold text-slate-300">#{{ currentDayData.records?.length || 0 }}</span>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-[0.65em] font-bold text-green-600 tracking-tighter">{{ t('income_short') }} +{{ formatNumber(dayTotalIncome) }}</span>
-                                <span class="text-[0.65em] font-bold text-red-600 tracking-tighter">{{ t('expense_short') }} -{{ formatNumber(dayTotalExpense) }}</span>
+                            <div class="flex justify-between items-center">
+                                <div class="flex flex-col gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-6 h-6 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-black"><i data-lucide="arrow-down-left" class="w-3 h-3"></i></div>
+                                        <span class="text-[0.95em] font-black text-green-600 font-mono">+{{ formatNumber(dayTotalIncome) }}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-black"><i data-lucide="arrow-up-right" class="w-3 h-3"></i></div>
+                                        <span class="text-[0.95em] font-black text-red-600 font-mono">-{{ formatNumber(dayTotalExpense) }}</span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">{{ t('daily_net') }}</p>
+                                    <div :class="dayNetBalance >= 0 ? 'text-green-600' : 'text-red-600'" class="text-[1.8em] font-black font-mono tracking-tighter leading-none">
+                                        {{ dayNetBalance >= 0 ? '+' : '' }}{{ formatNumber(dayNetBalance) }}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- 心情日誌卡片 -->
                         <div @click="openAddModal('diary')" class="bg-white p-5 rounded-[1.5rem] card-shadow border border-slate-100 space-y-3 cursor-pointer active:scale-[0.98] transition-all">
-                            <div class="flex items-center justify-between">
-                                <span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_diary') }}</span>
-                                <div class="text-[1.2em]">{{ currentDayData.feeling }}</div>
+                            <div class="flex items-center justify-between border-b border-slate-50 pb-2">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="pen-tool" class="w-4 h-4 text-orange-400"></i>
+                                    <span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_diary') }}</span>
+                                </div>
+                                <div class="text-[1.2em]">{{ currentDayData.feeling || '😊' }}</div>
                             </div>
                             <div v-if="currentDayData.photos?.length" class="grid gap-1 overflow-hidden rounded-xl" :class="getPhotoGridClass(currentDayData.photos.length)">
                                 <img v-for="(img, idx) in currentDayData.photos.slice(0, 3)" :key="idx" :src="img" class="w-full h-full object-cover min-h-[80px]">
                             </div>
-                            <p class="text-[0.9em] text-slate-600 leading-relaxed truncate">{{ currentDayData.diaryText }}</p>
+                            <p class="text-[0.9em] text-slate-600 leading-relaxed truncate">{{ currentDayData.diaryText || t('no_diary_text') }}</p>
                         </div>
-                    </div>
-                    <div v-else class="text-center py-20 opacity-30 text-[0.8em] font-black flex flex-col items-center">
-                        <i data-lucide="inbox" class="w-10 h-10 mb-2"></i>
-                        {{ t('no_data_hint') }}
                     </div>
                 </div>
             </section>
 
-            <!-- 視圖 2: 股市投資 -->
+            <!-- 分頁：股市投資 -->
             <section v-if="currentView === 'stocks'" class="p-6 space-y-6 animate-in fade-in">
-                <div class="flex justify-between items-end px-1">
-                    <div>
-                        <h2 class="text-[1.5em] font-black text-slate-800">{{ t('stocks') }}</h2>
-                        <p class="text-[0.6em] text-slate-400 font-bold uppercase tracking-widest">Global Market Pulse</p>
-                    </div>
-                    <button @click="updatePortfolioPrices" :disabled="isAILoading || !stockPortfolio.length" :style="{ backgroundColor: settings.themeColor }" class="text-white px-6 py-2 rounded-full font-black text-[0.7em] shadow-lg active:scale-90 transition-all disabled:opacity-30 flex items-center">
-                        <i v-if="isAILoading" data-lucide="loader-2" class="w-3 h-3 mr-2 animate-spin text-white"></i>
-                        {{ isAILoading ? t('fetching') : t('stat_btn') }}
-                    </button>
-                </div>
-
                 <div class="bg-slate-900 text-white p-7 rounded-[2.5rem] shadow-xl relative overflow-hidden">
                     <div class="absolute -right-5 -top-5 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl"></div>
                     <div class="relative z-10 space-y-5">
-                        <div class="flex justify-between items-center border-b border-white/10 pb-5">
-                            <div>
+                        <div class="flex justify-between items-center border-b border-white/10 pb-5 text-center">
+                            <div class="flex-1">
                                 <p class="text-[0.6em] opacity-50 uppercase font-black tracking-widest">{{ t('market_value') }}</p>
-                                <p class="text-[2em] font-black font-mono tracking-tighter">${{ formatNumber(stockTotalValue) }}</p>
+                                <p class="text-xl font-black font-mono tracking-tighter">${{ formatNumber(stockTotalValue) }}</p>
                             </div>
-                            <div class="text-right">
+                            <div class="w-px h-10 bg-white/10 mx-2"></div>
+                            <div class="flex-1">
                                 <p class="text-[0.6em] opacity-50 uppercase font-black tracking-widest">{{ t('total_profit') }}</p>
-                                <p :class="stockTotalProfit >= 0 ? 'text-green-400' : 'text-red-400'" class="text-[1.5em] font-black font-mono tracking-tighter">
+                                <p :class="stockTotalProfit >= 0 ? 'text-green-400' : 'text-red-400'" class="text-xl font-black font-mono tracking-tighter">
                                     {{ stockTotalProfit >= 0 ? '+' : '' }}{{ formatNumber(stockTotalProfit) }}
                                 </p>
                             </div>
                         </div>
-                        <div class="flex justify-between text-[0.6em] font-bold">
-                            <span class="opacity-40 uppercase">{{ t('last_sync') }}: {{ lastSyncTime || '---' }}</span>
-                            <span class="text-indigo-400 font-black italic uppercase tracking-widest font-black">Official Listed/OTC Data</span>
-                        </div>
+                        <button @click="updatePortfolioPrices" :disabled="isAILoading" class="w-full py-3 bg-white/10 rounded-2xl font-black text-[0.75em] flex items-center justify-center gap-2 active:scale-95 transition-all">
+                            <i v-if="isAILoading" data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>
+                            {{ isAILoading ? t('fetching') : t('stat_btn') }}
+                        </button>
                     </div>
                 </div>
 
-                <div class="space-y-3">
-                    <div v-for="(stk, idx) in stockPortfolio" :key="idx" class="bg-white p-4 rounded-3xl border border-slate-100 card-shadow flex justify-between items-center group transition-all">
+                <div class="space-y-4">
+                    <div v-for="(stk, idx) in stockPortfolio" :key="idx" class="bg-white p-4 rounded-3xl border border-slate-100 card-shadow flex justify-between items-center transition-all">
                         <div class="flex items-center min-w-0 flex-1">
                             <div class="w-11 h-11 rounded-2xl bg-slate-50 flex items-center justify-center mr-4 text-[1.25em] font-bold text-p shadow-inner">{{ stk.name[0] }}</div>
                             <div class="min-w-0 flex-1">
-                                <p class="text-[0.9em] font-black text-slate-800 truncate pr-2">{{ stk.name }}</p>
-                                <p class="text-[0.6em] text-slate-400 font-bold uppercase mt-1">
-                                    {{ stk.qty }} {{ t('shares_unit') }} · @{{ formatNumber(stk.buyPrice) }}
-                                </p>
+                                <p class="text-sm font-black text-slate-800 truncate pr-2">{{ stk.name }}</p>
+                                <p class="text-[0.6em] text-slate-400 font-bold uppercase mt-1">{{ stk.qty }} {{ t('shares_unit') }} · @{{ formatNumber(stk.buyPrice) }}</p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-4 text-right">
-                            <div class="shrink-0">
+                        <div class="flex items-center gap-4 text-right shrink-0">
+                            <div>
                                 <p :class="(stk.currentPrice - stk.buyPrice) >= 0 ? 'text-green-600' : 'text-red-600'" class="text-[0.9em] font-black font-mono">
                                     {{ (stk.currentPrice - stk.buyPrice) >= 0 ? '+' : '' }}{{ formatNumber((stk.currentPrice - stk.buyPrice) * stk.qty) }}
                                 </p>
-                                <p class="text-[0.55em] text-slate-400 font-bold uppercase">現價: {{ stk.currentPrice ? formatNumber(stk.currentPrice) : '---' }}</p>
+                                <p class="text-[0.55em] text-slate-400 font-bold uppercase">現價: {{ stk.currentPrice || '---' }}</p>
                             </div>
-                            <button @click="stockPortfolio.splice(idx, 1)" class="text-slate-200 hover:text-red-400 p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            <button @click="stockPortfolio.splice(idx, 1)" class="text-slate-200 hover:text-red-400 p-1 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                         </div>
                     </div>
-                    <!-- 加入清單 -->
-                    <div class="p-6 bg-indigo-50/50 rounded-[2.5rem] border border-indigo-100 space-y-4">
-                        <input v-model="newStock.name" type="text" class="bg-white w-full p-4 rounded-2xl text-[0.85em] font-black outline-none border-none shadow-sm" :placeholder="t('stock_name_ph')">
+
+                    <div class="p-6 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
+                        <input v-model="newStock.name" type="text" class="bg-slate-50 w-full p-4 rounded-2xl text-[0.85em] font-black outline-none border-none shadow-inner" :placeholder="t('stock_name_ph')">
                         <div class="grid grid-cols-2 gap-3">
-                            <input v-model.number="newStock.qty" type="number" class="bg-white p-4 rounded-2xl text-[0.85em] font-black outline-none border-none shadow-sm" :placeholder="t('stock_qty_ph')">
-                            <input v-model.number="newStock.buyPrice" type="number" class="bg-white p-4 rounded-2xl text-[0.85em] font-black outline-none border-none shadow-sm" :placeholder="t('stock_buy_ph')">
+                            <input v-model.number="newStock.qty" type="number" class="bg-slate-50 p-4 rounded-2xl text-[0.85em] font-black outline-none border-none shadow-inner text-center" :placeholder="t('stock_qty_ph')">
+                            <input v-model.number="newStock.buyPrice" type="number" class="bg-slate-50 p-4 rounded-2xl text-[0.85em] font-black outline-none border-none shadow-inner text-center" :placeholder="t('stock_buy_ph')">
                         </div>
                         <button @click="addStockItem" :style="{ backgroundColor: settings.themeColor }" class="w-full text-white py-4 rounded-2xl font-black text-[0.8em] shadow-xl active:scale-[0.98] transition-all">
                             {{ t('add_stock_btn') }}
@@ -230,64 +294,60 @@
                 </div>
             </section>
 
-            <!-- 視圖 3: 圖表分析 (Charts) -->
-            <section v-if="currentView === 'charts'" class="p-6 space-y-8 animate-in fade-in">
-                <div class="bg-white p-4 rounded-[2rem] card-shadow border border-slate-50 flex items-center justify-between transition-all overflow-hidden">
-                    <div class="text-center flex-1 min-w-0">
-                        <p class="text-[0.55em] font-black text-green-600 uppercase mb-0.5 truncate">{{ t('income') }}</p>
-                        <p class="text-[0.8em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.income) }}</p>
+            <!-- 分頁：分析統計 -->
+            <section v-if="currentView === 'charts'" class="p-6 space-y-8 animate-in fade-in text-center">
+                <div class="bg-white p-4 rounded-[2rem] card-shadow border border-slate-50 flex items-center justify-between transition-all overflow-hidden gap-1">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[0.5em] font-black text-green-600 uppercase mb-0.5 truncate">{{ t('income_short') }}</p>
+                        <p class="text-[0.75em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.income) }}</p>
                     </div>
-                    <div class="h-8 w-px bg-slate-100 mx-1"></div>
-                    <div class="text-center flex-1 min-w-0">
-                        <p class="text-[0.55em] font-black text-red-500 uppercase mb-0.5 truncate">{{ t('expense') }}</p>
-                        <p class="text-[0.8em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.expense) }}</p>
+                    <div class="h-6 w-px bg-slate-100"></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[0.5em] font-black text-red-500 uppercase mb-0.5 truncate">{{ t('expense_short') }}</p>
+                        <p class="text-[0.75em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.expense) }}</p>
                     </div>
-                    <div class="h-8 w-px bg-slate-100 mx-1"></div>
-                    <div class="text-center flex-1 min-w-0">
-                        <p class="text-[0.55em] font-black text-indigo-500 uppercase mb-0.5 truncate">{{ t('balance') }}</p>
-                        <p class="text-[0.8em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.net) }}</p>
+                    <div class="h-6 w-px bg-slate-100"></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[0.5em] font-black text-indigo-500 uppercase mb-0.5 truncate">{{ t('balance') }}</p>
+                        <p class="text-[0.75em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.net) }}</p>
                     </div>
-                    <div class="h-8 w-px bg-slate-100 mx-1"></div>
-                    <div class="text-center flex-1 min-w-0">
-                        <p class="text-[0.55em] font-black text-orange-500 uppercase mb-0.5 truncate">{{ t('unrealized_pl') }}</p>
-                        <p :class="stockTotalProfit >= 0 ? 'text-green-600' : 'text-red-600'" class="text-[0.8em] font-black truncate">
-                            {{ stockTotalProfit >= 0 ? '+' : '' }}${{ formatNumber(stockTotalProfit) }}
-                        </p>
+                    <div class="h-6 w-px bg-slate-100"></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[0.5em] font-black text-orange-500 uppercase mb-0.5 truncate">{{ t('unrealized_pl_short') }}</p>
+                        <p :class="stockTotalProfit >= 0 ? 'text-green-600' : 'text-red-600'" class="text-[0.75em] font-black truncate">${{ formatNumber(stockTotalProfit) }}</p>
                     </div>
                 </div>
 
-                <div class="flex bg-slate-200 p-1.5 rounded-2xl text-[0.7em] font-black">
-                    <button v-for="v in ['day','month','year','all']" :key="v" 
-                        @click="chartRange = v"
-                        :style="chartRange === v ? { backgroundColor: settings.themeColor, color: 'white' } : {}"
-                        class="flex-1 py-2 rounded-xl transition-all"
-                        :class="chartRange === v ? 'shadow-md scale-105' : 'text-slate-500'"
-                    >
-                        {{ t(v + '_view') }}
-                    </button>
-                </div>
-
-                <div class="bg-white p-8 rounded-[3rem] card-shadow flex flex-col items-center">
-                    <div class="flex justify-between items-center w-full mb-8 px-2">
-                        <h4 class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ t('expense_structure') }}</h4>
-                        <div class="flex bg-slate-50 p-1 rounded-full text-[8px] font-black border border-slate-100 overflow-hidden">
-                            <button @click="chartMode = 'expense'" :class="chartMode === 'expense' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-2 transition-all">{{ t('expense') }}</button>
-                            <button @click="chartMode = 'income'" :class="chartMode === 'income' ? 'bg-green-600 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-2 transition-all">{{ t('income') }}</button>
+                <div class="bg-white p-8 rounded-[3rem] card-shadow flex flex-col items-center border border-slate-50">
+                    <div class="flex justify-between items-center w-full mb-8">
+                        <h4 class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ chartMode === 'expense' ? t('expense_structure') : t('income_structure') }}</h4>
+                        <div class="flex bg-slate-50 p-1 rounded-full text-[0.6em] font-black overflow-hidden border border-slate-100">
+                            <button @click="chartMode = 'expense'" :class="chartMode === 'expense' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-1.5 rounded-full transition-all">{{ t('expense_short') }}</button>
+                            <button @click="chartMode = 'income'" :class="chartMode === 'income' ? 'bg-green-600 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-1.5 rounded-full transition-all">{{ t('income_short') }}</button>
                         </div>
                     </div>
                     <div class="relative w-48 h-48 flex items-center justify-center">
                         <div class="pie-chart shadow-inner" :style="{ background: pieGradient }"></div>
-                        <div class="absolute w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center shadow-lg border border-slate-50 text-center">
+                        <div class="absolute w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center shadow-lg text-center border border-slate-50">
                             <p class="text-[0.6em] text-slate-400 font-black uppercase mb-1">{{ chartMode === 'expense' ? t('expense') : t('income') }}</p>
                             <p class="text-[1.1em] font-black" :class="chartMode === 'expense' ? 'text-red-500' : 'text-green-600'">${{ formatNumber(chartTotalValue) }}</p>
                         </div>
                     </div>
+                    <div class="w-full mt-10 grid grid-cols-2 gap-3 text-left">
+                        <div v-for="cat in chartCategories" :key="cat.name" class="flex items-center p-3 rounded-[1.5rem] bg-slate-50 border border-slate-100 shadow-sm">
+                            <div class="w-3 h-3 rounded-full mr-3 shrink-0 shadow-sm" :style="{backgroundColor: cat.color}"></div>
+                            <div class="flex flex-col min-w-0">
+                                <span class="text-[0.9em] font-black text-slate-500 truncate">{{ cat.name }}</span>
+                                <span class="text-xs font-black text-slate-800">${{ formatNumber(cat.value) }}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
-            
+
             <!-- 設定分頁 -->
             <section v-if="currentView === 'settings'" class="p-6">
-                <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-8 transition-all">
+                <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-8">
                     <div class="flex justify-between items-center">
                         <span class="text-[0.9em] font-black text-slate-700">{{ t('lang_label') }}</span>
                         <select v-model="settings.lang" class="bg-slate-50 rounded-xl px-4 py-3 font-black text-[0.7em] outline-none border-none ring-1 ring-slate-100">
@@ -313,34 +373,29 @@
                                 @click="settings.fontSize = sz"
                                 :style="settings.fontSize === sz ? { backgroundColor: settings.themeColor, color: 'white' } : {}"
                                 class="px-4 py-2 text-[0.65em] font-black rounded-lg transition-all"
-                                :class="settings.fontSize === sz ? 'shadow-sm' : 'text-slate-400'"
-                            >
-                                {{ t('font_' + sz) }}
-                            </button>
+                            >{{ t('font_' + sz) }}</button>
                         </div>
                     </div>
                 </div>
             </section>
         </main>
 
-        <!-- 新增紀錄與心情日誌彈窗 -->
+        <!-- 編輯/新增視窗 -->
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
                 <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
-                <!-- 動態縮放手勢核心容器 -->
-                <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[96vh] shadow-2xl modal-scrollable"
+                <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[96vh] shadow-2xl modal-scrollable overflow-x-hidden"
                     :class="{ 'modal-transition': !isDraggingModal }"
                     :style="modalStyle"
                     @touchstart="handleModalTouchStart"
                     @touchmove="handleModalTouchMove"
                     @touchend="handleModalTouchEnd"
                 >
-                    <!-- 關閉按鈕 -->
-                    <button @click="showAddModal = false" class="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 transition-colors z-[110]">
+                    <button @click="showAddModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-600 transition-colors z-[110]">
                         <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
-
                     <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div>
+                    
                     <div class="flex justify-between items-center mb-6 px-1">
                         <h2 class="text-[1.3em] font-black text-slate-800">{{ currentMonth+1 }}/{{ selectedDay }} {{ t('new_record') }}</h2>
                         <button @click="saveRecord" :style="{ backgroundColor: settings.themeColor }" class="text-white px-10 py-3 rounded-full font-black shadow-xl active:scale-95 transition-all text-[0.8em] mr-8">{{ t('save') }}</button>
@@ -351,48 +406,30 @@
                         <button @click="editTab = 'finance'" :class="editTab === 'finance' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'finance' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_finance') }}</button>
                     </div>
 
-                    <!-- 財務分頁 -->
-                    <div v-if="editTab === 'finance'" class="space-y-8 pb-24 overflow-x-hidden">
-                        <div class="space-y-4">
-                            <div v-for="(rec, ridx) in form.records" :key="ridx" class="flex items-center justify-between bg-white p-4 rounded-[1.5rem] card-shadow border border-slate-50 overflow-hidden">
-                                <div class="flex items-center min-w-0 flex-1">
-                                    <div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mr-3 text-[1.25em] shrink-0">{{ getCategoryIcon(rec.category) }}</div>
-                                    <div class="min-w-0 flex-1">
-                                        <p class="text-sm font-black text-slate-800">{{ rec.category }}</p>
-                                        <p v-if="rec.note" class="text-[10px] text-slate-400 font-bold uppercase truncate pr-4">{{ rec.note }}</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-3 shrink-0">
-                                    <span :class="rec.type === 'income' ? 'text-green-600' : 'text-red-600'" class="font-mono font-black text-[1.1em]">
-                                        {{ rec.type === 'income' ? '+' : '-' }}{{ formatNumber(rec.amount) }}
-                                    </span>
-                                    <button @click="form.records.splice(ridx, 1)" class="text-slate-200 hover:text-red-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                                </div>
-                            </div>
+                    <!-- 財務輸入 -->
+                    <div v-if="editTab === 'finance'" class="space-y-8 pb-24">
+                        <div class="grid grid-cols-4 gap-3 px-1">
+                            <button v-for="cat in currentCategories" :key="cat.name" 
+                                @click="newRecord.category = cat.name" 
+                                @touchstart="startCategoryLongPress(cat)" @touchend="endCategoryLongPress"
+                                @mousedown="startCategoryLongPress(cat)" @mouseup="endCategoryLongPress"
+                                :class="newRecord.category === cat.name ? 'ring-4 ring-indigo-100 bg-white scale-105 shadow-sm' : 'bg-white/40 opacity-70'" 
+                                class="category-btn transition-all"
+                            >
+                                <span class="text-xl mb-1 flex items-center justify-center h-8 w-8">{{ cat.icon }}</span>
+                                <span class="text-[0.6em] font-black text-slate-600 truncate w-full text-center">{{ cat.name }}</span>
+                            </button>
+                            <button @click="showAddCategory = true" class="category-btn bg-white/40 border border-dashed border-slate-300 active:scale-90 flex items-center justify-center">
+                                <i data-lucide="plus" class="w-6 h-6 text-slate-300"></i>
+                            </button>
                         </div>
-
                         <div class="p-6 bg-slate-50/80 rounded-[2.5rem] border border-slate-200 space-y-6">
                             <div class="flex justify-between items-center px-1">
-                                <span class="text-[10px] font-black text-slate-400 tracking-widest uppercase">{{ t('add_new_line') }}</span>
-                                <div class="flex bg-white p-1 rounded-full shadow-sm text-[9px] font-black border border-slate-100 overflow-hidden">
-                                    <button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-red-500 text-white shadow-md' : 'text-red-400'" class="px-6 py-2.5 transition-all text-[0.9em]">{{ t('expense') }}</button>
-                                    <button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-green-500 text-white shadow-md' : 'text-green-400'" class="px-6 py-2.5 transition-all text-[0.9em]">{{ t('income') }}</button>
+                                <span class="text-[0.7em] font-black text-slate-400 tracking-widest uppercase">{{ t('add_new_line') }}</span>
+                                <div class="flex bg-white p-1 rounded-full shadow-sm text-[0.6em] font-black border border-slate-100 overflow-hidden">
+                                    <button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-red-500 text-white shadow-md' : 'text-red-400'" class="px-6 py-2.5 transition-all">{{ t('expense_short') }}</button>
+                                    <button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-green-500 text-white shadow-md' : 'text-green-400'" class="px-6 py-2.5 transition-all">{{ t('income_short') }}</button>
                                 </div>
-                            </div>
-                            <div class="grid grid-cols-4 gap-3">
-                                <button v-for="cat in currentCategories" :key="cat.name" 
-                                    @click="newRecord.category = cat.name" 
-                                    @touchstart="startCategoryLongPress(cat)" 
-                                    @mousedown="startCategoryLongPress(cat)"
-                                    @touchend="endCategoryLongPress"
-                                    @mouseup="endCategoryLongPress"
-                                    :class="newRecord.category === cat.name ? 'ring-4 ring-indigo-100 bg-white scale-105 shadow-sm' : 'bg-white/40 opacity-70'" class="category-btn transition-all">
-                                    <span class="text-xl mb-1 flex items-center justify-center h-8 w-8">{{ cat.icon }}</span>
-                                    <span class="text-[0.6em] font-black text-slate-600 truncate w-full text-center">{{ cat.name }}</span>
-                                </button>
-                                <button @click="showAddCategory = true" class="category-btn bg-white/40 border border-dashed border-slate-300 active:scale-90 flex items-center justify-center">
-                                    <i data-lucide="plus" class="w-6 h-6 text-slate-300"></i>
-                                </button>
                             </div>
                             <div class="flex gap-3 items-center w-full">
                                 <div class="w-[30%] shrink-0">
@@ -406,25 +443,16 @@
                         </div>
                     </div>
 
-                    <!-- 心情日誌分頁 (僅上下滾動) -->
-                    <div v-if="editTab === 'diary'" class="space-y-8 pb-24 px-1 overflow-x-hidden overflow-y-auto">
-                        <div class="flex items-center justify-between bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100">
-                            <div class="flex items-center">
-                                <div class="w-12 h-12 rounded-2xl bg-white shadow-md flex items-center justify-center mr-4" :class="{'recording-pulse': isRecording}">
-                                    <i data-lucide="mic" class="w-6 h-6" :class="isRecording ? 'text-red-500' : 'text-p'"></i>
-                                </div>
-                                <div class="flex flex-col">
-                                    <span class="text-xs font-black">{{ isRecording ? t('recording') : (form.audio ? t('recorded') : t('voice_memo')) }}</span>
-                                    <span class="text-[0.6em] text-slate-400 font-bold uppercase tracking-widest">Audio</span>
-                                </div>
-                            </div>
-                            <div class="flex gap-2">
-                                <button v-if="!isRecording" @click="startRecording" class="p-3 bg-p text-white rounded-xl shadow-lg active:scale-90 transition-all"><i data-lucide="play" class="w-4 h-4 fill-current text-white"></i></button>
-                                <button v-else @click="stopRecording" class="p-3 bg-red-500 text-white rounded-xl shadow-lg animate-pulse"><i data-lucide="square" class="w-4 h-4 fill-current text-white"></i></button>
-                                <button v-if="form.audio && !isRecording" @click="playAudio(form.audio)" class="p-3 bg-indigo-100 text-p rounded-xl active:scale-90"><i data-lucide="volume-2" class="w-4 h-4"></i></button>
+                    <!-- 心情日誌輸入 -->
+                    <div v-if="editTab === 'diary'" class="space-y-8 pb-24 px-1 overflow-x-hidden">
+                        <div class="space-y-4">
+                            <label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest px-1">{{ t('journal_feeling') }}</label>
+                            <div class="flex gap-2.5 px-1 overflow-x-auto hide-scrollbar">
+                                <button v-for="f in ['😊','😔','😡','🤩','😴','💪','🍷','🏢','✈️']" :key="f" @click="form.feeling = f" 
+                                    :class="form.feeling === f ? 'scale-125 ring-2 ring-orange-200 bg-white' : 'opacity-40'"
+                                    class="text-[1.5em] p-2 rounded-xl transition-all">{{ f }}</button>
                             </div>
                         </div>
-
                         <div class="space-y-4">
                             <div class="flex justify-between items-center px-1">
                                 <label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ t('photo') }} ({{ form.photos?.length || 0 }}/10)</label>
@@ -436,23 +464,20 @@
                             <div v-if="form.photos?.length" class="flex gap-3 overflow-x-auto py-2 hide-scrollbar px-1">
                                 <div v-for="(img, idx) in form.photos" :key="idx" class="relative w-24 h-24 shrink-0 rounded-[1.5rem] overflow-hidden shadow-lg border-2 border-white">
                                     <img :src="img" class="w-full h-full object-cover">
-                                    <button @click="form.photos.splice(idx, 1)" class="absolute top-1.5 right-1.5 bg-black/60 text-white rounded-full p-1 active:scale-75"><i data-lucide="x" class="w-3 h-3 text-white"></i></button>
+                                    <button @click="form.photos.splice(idx, 1)" class="absolute top-1.5 right-1.5 bg-black/60 text-white rounded-full p-1 active:scale-75"><i data-lucide="x" class="w-3.5 h-3.5 text-white"></i></button>
                                 </div>
                             </div>
                         </div>
-
                         <div class="space-y-4">
                             <div class="flex justify-between items-center px-1">
                                 <label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ t('location_map') }}</label>
-                                <button @click="openGoogleMapsSearch" class="px-5 py-2 bg-indigo-50 text-p rounded-full text-[0.6em] font-black active:scale-90 transition-all border border-indigo-100">
-                                    {{ t('search_on_map') }}
-                                </button>
+                                <button @click="openGoogleMapsSearch" class="px-5 py-2 bg-indigo-50 text-p rounded-full text-[0.6em] font-black active:scale-90 transition-all border border-indigo-100">{{ t('search_on_map') }}</button>
                             </div>
                             <div class="flex gap-3">
                                 <input v-model="locationSearch" @keyup.enter="addLocation" :placeholder="t('location_ph')" class="flex-1 bg-slate-50 p-4 rounded-2xl text-[0.85em] font-bold outline-none border-2 border-transparent focus:border-p transition-all shadow-inner">
                                 <button @click="addLocation" class="bg-p text-white w-14 rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><i data-lucide="plus" class="w-6 h-6 text-white"></i></button>
                             </div>
-                            <div class="space-y-2 px-1">
+                            <div class="space-y-2">
                                 <div v-for="(loc, lidx) in form.locations" :key="lidx" class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 card-shadow animate-in slide-in-from-bottom">
                                     <div class="flex items-center text-[0.85em] font-black text-indigo-700 cursor-pointer" @click="openGoogleMaps(loc.name)">
                                         <i data-lucide="map-pin" class="w-4 h-4 mr-3 opacity-50"></i>
@@ -462,24 +487,13 @@
                                 </div>
                             </div>
                         </div>
-
-                        <div class="space-y-4">
-                            <div class="flex justify-between items-center px-1">
-                                <label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ t('journal_feeling') }}</label>
-                                <div class="flex gap-2.5">
-                                    <button v-for="f in ['😊','😔','😡','🤩','😴','💪','🍷']" :key="f" @click="form.feeling = f" 
-                                        :class="form.feeling === f ? 'scale-125 ring-2 ring-orange-200' : 'opacity-40'"
-                                        class="text-[1.5em] transition-all">{{ f }}</button>
-                                </div>
-                            </div>
-                            <textarea v-model="form.diaryText" class="w-full h-48 bg-slate-50 p-6 rounded-[2.5rem] border-none outline-none focus:ring-4 ring-indigo-50 shadow-inner text-[0.9em] font-bold leading-relaxed" :placeholder="t('journal_placeholder')"></textarea>
-                        </div>
+                        <textarea v-model="form.diaryText" class="w-full h-48 bg-slate-50 p-6 rounded-[2.5rem] border-none outline-none focus:ring-4 ring-indigo-50 shadow-inner text-[0.9em] font-bold leading-relaxed" :placeholder="t('journal_placeholder')"></textarea>
                     </div>
                 </div>
             </div>
         </transition>
 
-        <!-- 分類編輯彈窗 -->
+        <!-- 自定義類別彈窗 -->
         <transition name="fade">
             <div v-if="showAddCategory || showEditCategory" class="fixed inset-0 z-[200] flex items-center justify-center p-6">
                 <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeCategoryModal"></div>
@@ -500,30 +514,23 @@
         </transition>
 
         <!-- 底部導覽列 -->
-        <nav class="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-2xl border-t border-slate-100 h-24 tab-bar z-40 px-3 transition-all shadow-lg flex items-center shrink-0">
+        <nav class="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-2xl border-t border-slate-100 h-24 tab-bar z-40 px-3 flex items-center shadow-lg shrink-0">
             <div class="flex w-full items-center justify-around">
-                <button v-for="v in ['ledger', 'stocks']" :key="v" @click="currentView = v"
-                    :style="currentView === v ? { color: settings.themeColor } : {}"
+                <button v-for="v in ['ledger', 'stocks', 'add', 'charts', 'settings']" :key="v" 
+                    @click="v === 'add' ? openAddModal() : (currentView = v)"
+                    :style="(currentView === v && v !== 'add') ? { color: settings.themeColor } : {}"
                     class="flex flex-col items-center transition-all flex-1"
-                    :class="currentView === v ? 'nav-active scale-110' : 'text-slate-300'"
+                    :class="[currentView === v ? 'nav-active scale-110' : 'text-slate-300', v === 'add' ? 'relative' : '']"
                 >
-                    <i :data-lucide="v === 'ledger' ? 'calendar' : 'trending-up'" class="w-6 h-6"></i>
-                    <span class="text-[0.55em] mt-1.5 uppercase font-black tracking-tighter">{{ t(v) }}</span>
-                </button>
-                
-                <div class="flex justify-center relative flex-1">
-                    <button @click="openAddModal()" :style="{ backgroundColor: settings.themeColor }" class="text-white w-16 h-16 rounded-[2.2rem] shadow-xl border-[6px] border-white flex items-center justify-center -translate-y-8 active:scale-90 transition-all hover:rotate-90">
-                        <i data-lucide="plus" class="w-8 h-8 text-white"></i>
-                    </button>
-                </div>
-
-                <button v-for="v in ['charts', 'settings']" :key="v" @click="currentView = v"
-                    :style="currentView === v ? { color: settings.themeColor } : {}"
-                    class="flex flex-col items-center transition-all flex-1"
-                    :class="currentView === v ? 'nav-active scale-110' : 'text-slate-300'"
-                >
-                    <i :data-lucide="v === 'charts' ? 'pie-chart' : 'settings'" class="w-6 h-6"></i>
-                    <span class="text-[0.55em] mt-1.5 uppercase font-black tracking-tighter">{{ t(v) }}</span>
+                    <template v-if="v === 'add'">
+                        <div :style="{ backgroundColor: settings.themeColor }" class="text-white w-16 h-16 rounded-[2.2rem] shadow-xl border-[6px] border-white flex items-center justify-center -translate-y-8 active:scale-90 transition-all hover:rotate-90">
+                            <i data-lucide="plus" class="w-8 h-8"></i>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <i :data-lucide="v === 'ledger' ? 'calendar' : (v === 'stocks' ? 'trending-up' : (v === 'charts' ? 'pie-chart' : 'settings'))" class="w-6 h-6"></i>
+                        <span class="text-[0.6em] mt-1.5 uppercase font-black tracking-tighter">{{ t(v) }}</span>
+                    </template>
                 </button>
             </div>
         </nav>
@@ -539,6 +546,8 @@ createApp({
         const apiKey = ""; 
         const currentView = ref('ledger');
         const showAddModal = ref(false);
+        const showYearPicker = ref(false);
+        const showMonthPicker = ref(false);
         const showAddCategory = ref(false);
         const showEditCategory = ref(false);
         const chartRange = ref('all');
@@ -548,10 +557,14 @@ createApp({
         const isRecording = ref(false);
         const locationSearch = ref('');
         const lastSyncTime = ref('');
+        const errorMsg = ref('');
+        const touchYStart = ref(0);
+        const modalDeltaY = ref(0);
+        const isDraggingModal = ref(false);
         let mediaRecorder = null;
         let audioChunks = [];
 
-        // 1. 狀態初始化
+        // 1. 基礎狀態
         const today = new Date();
         const currentYear = ref(today.getFullYear());
         const currentMonth = ref(today.getMonth());
@@ -560,203 +573,73 @@ createApp({
 
         const dictionary = {
             zh: { 
-                ledger: '帳本', stocks: '股市投資', charts: '圖表分析', settings: '系統設置', 
-                year: '年', month: '月', steps: '步', in_prefix: '收', out_prefix: '支',
+                ledger: '帳本', stocks: '股市投資', charts: '分析統計', settings: '系統設置', add: '新增',
+                year: '年', month: '月', steps: '步', in_prefix: '收', out_prefix: '支', daily_net: '當日結餘',
                 weekdays: ['日','一','二','三','四','五','六'],
-                daily_finance: '今日財務', daily_diary: '心情日誌', voice_memo: '語音備忘', recorded: '錄音已存', recording: '正在錄製',
-                no_data_hint: '今天還沒有紀錄喔', net_worth: '組合價值', total_income: '收入總計', total_expense: '支出總計',
-                total_in: '累計收入', total_out_short: '累計支出', balance: '累計結餘', fetching: '行情獲取中',
-                day_view: '本日', month_view: '本月', year_view: '年度', all_view: '全部資料',
-                expense_structure: '支出佔比分析', income_structure: '收入佔比分析',
-                lang_label: '介面語言', theme_label: '配色方案', font_label: '文字大小',
-                font_small: '小 (0.75x)', font_medium: '中 (1.0x)', font_large: '大 (1.25x)',
-                new_record: '新增紀錄', save: '保存紀錄', ai_fill: 'AI 智慧助理',
-                photo: '回憶相片', location_map: '足跡地點', footprints_list: '今日行程清單', custom_cat_title: '新增類別', edit_cat_title: '編輯類別',
-                market_value: '組合現值', total_profit: '預估損益', unrealized_pl: '未實現損益',
-                stock_name_ph: '股票名稱 (代碼)', stock_qty_ph: '股數', stock_buy_ph: '買入成本', add_stock_btn: '加入清單',
-                shares_unit: '股', last_sync: '最後同步', search_on_map: '搜尋地圖', location_ph: '輸入地點名稱...',
-                journal_feeling: '心情感受', journal_placeholder: '分享今天發生的事？', amount_ph: '金額', note_ph: '備註', add_to_list: '加入清單',
-                income: '收入', expense: '支出', stat_btn: '智慧統計', income_short: '收', expense_short: '支',
-                add_new_line: '新增收支明細', cancel: '取消', confirm: '確認', cat_name_ph: '例如：台積電、訂閱費...'
+                daily_finance: '當日財務', daily_diary: '心情日誌', fetching: '行情獲取中',
+                no_data_hint: '今天尚未有紀錄', balance: '結餘',
+                choose_year: '選擇年份', choose_month: '選擇月份', confirm: '確認',
+                income: '收入', expense: '支出', income_short: '收', expense_short: '支',
+                stock_name_ph: '股票名稱 (代碼)', stock_qty_ph: '股數', stock_buy_ph: '成本', add_stock_btn: '加入清單',
+                shares_unit: '股', unrealized_pl: '未實現損益', unrealized_pl_short: '未實益', expense_structure: '支出佔比分析', income_structure: '收入佔比分析',
+                lang_label: '語言選擇', theme_label: '配色方案', font_label: '文字大小', new_record: '紀錄詳情', save: '保存',
+                font_small: '小 (0.75x)', font_medium: '中 (1.0x)', font_large: '大 (1.25x)', journal_placeholder: '分享今天發生的事...',
+                voice_memo: '語音備忘', recorded: '錄音已存', recording: '錄音中', amount_ph: '金額', note_ph: '備註', add_to_list: '加入',
+                stat_btn: '智慧統計', no_diary_text: '尚未填寫今日日誌...', market_value: '市值', total_profit: '總損益',
+                photo: '相片', location_map: '地點', search_on_map: '地圖', location_ph: '輸入地點...', add_new_line: '新增收支明細', journal_feeling: '心情感受',
+                edit_cat_title: '編輯類別', custom_cat_title: '自定義類別', cat_name_ph: '名稱'
             },
             en: { 
-                ledger: 'Ledger', stocks: 'Stocks', charts: 'Charts', settings: 'Settings',
-                year: '.', month: '.', steps: 'steps', in_prefix: 'IN', out_prefix: 'OUT',
+                ledger: 'Ledger', stocks: 'Stocks', charts: 'Charts', settings: 'Settings', add: 'New',
+                year: 'Y', month: 'M', steps: 'steps', in_prefix: 'IN', out_prefix: 'OUT', daily_net: 'Net',
                 weekdays: ['S','M','T','W','T','F','S'],
-                daily_finance: 'Finance', daily_diary: 'Journal', voice_memo: 'Voice', recorded: 'Saved', recording: 'Recording',
-                no_data_hint: 'No records today', net_worth: 'Portfolio', total_income: 'Total In', total_expense: 'Total Out',
-                total_in: 'Total In', total_out_short: 'Total Out', balance: 'Balance', fetching: 'Updating',
-                day_view: 'Day', month_view: 'Month', year_view: 'Year', all_view: 'All Data',
-                expense_structure: 'Expenses Analysis', income_structure: 'Income Analysis',
-                lang_label: 'Language', theme_label: 'Color Theme', font_label: 'Font Size',
-                font_small: 'S', font_medium: 'M', font_large: 'L',
-                new_record: 'New Record', save: 'Save', ai_fill: 'AI Assistant',
-                photo: 'Photos', location_map: 'Locations', footprints_list: 'Routes', custom_cat_title: 'Add Category', edit_cat_title: 'Edit Category',
-                market_value: 'Market Value', total_profit: 'P/L Estimate', unrealized_pl: 'Unrealized P/L',
-                stock_name_ph: 'Symbol/Name', stock_qty_ph: 'Shares', stock_buy_ph: 'Price', add_stock_btn: 'Add Stock',
-                shares_unit: 'shs', last_sync: 'Sync', search_on_map: 'Map Search', location_ph: 'Enter location...',
-                journal_feeling: 'Feelings', journal_placeholder: 'Tell me more...', amount_ph: '0', note_ph: 'Note', add_to_list: 'Add',
-                income: 'Income', expense: 'Expense', stat_btn: 'AI Stats', income_short: 'In', expense_short: 'Out',
-                add_new_line: 'Add Detail', cancel: 'Cancel', confirm: 'OK', cat_name_ph: 'Pet, Sub...'
+                daily_finance: 'Finance', daily_diary: 'Journal', fetching: 'Updating',
+                no_data_hint: 'No data', balance: 'Balance',
+                choose_year: 'Year', choose_month: 'Month', confirm: 'Done',
+                income: 'Income', expense: 'Expense', income_short: 'IN', expense_short: 'OUT',
+                stock_name_ph: 'Symbol', stock_qty_ph: 'Shares', stock_buy_ph: 'Cost', add_stock_btn: 'Add',
+                shares_unit: 'shs', unrealized_pl: 'Unrealized P/L', unrealized_pl_short: 'U-PL', expense_structure: 'Expenses', income_structure: 'Income',
+                lang_label: 'Language', theme_label: 'Theme', font_label: 'Font Size', new_record: 'Details', save: 'Save',
+                add_new_line: 'Add Detail', journal_feeling: 'Feelings'
             }
         };
 
         const t = (key) => dictionary[settings.value.lang][key] || key;
 
-        // 2. 日期與行事曆計算
-        const daysInMonth = computed(() => new Date(currentYear.value, currentMonth.value + 1, 0).getDate());
-        const firstDayOfMonth = computed(() => new Date(currentYear.value, currentMonth.value, 1).getDay());
-        const selectedDateString = computed(() => `${currentYear.value}${t('year')}${currentMonth.value + 1}${t('month')}${selectedDay.value}日`);
-
-        // 3. 分類管理 (增加圖標內容)
+        // 2. 核心數據
         const categories = ref([
             { name: '餐飲', icon: '🍲', type: 'expense' }, { name: '交通', icon: '🚗', type: 'expense' },
             { name: '購物', icon: '🛍️', type: 'expense' }, { name: '娛樂', icon: '🎬', type: 'expense' },
             { name: '居家', icon: '🏠', type: 'expense' }, { name: '醫療', icon: '💊', type: 'expense' },
-            { name: '人情', icon: '🎁', type: 'expense' }, { name: '薪資', icon: '💰', type: 'income' },
-            { name: '紅利', icon: '🧧', type: 'income' }, { name: '其它', icon: '📦', type: 'expense' }
+            { name: '薪資', icon: '💰', type: 'income' }, { name: '紅利', icon: '🧧', type: 'income' },
+            { name: '其它', icon: '📦', type: 'expense' }
         ]);
-        const iconPool = ['🍲', '☕', '🍺', '🍰', '🚗', '🚲', '⛽', '✈️', '🛍️', '👕', '📱', '🎮', '📚', '💊', '🩺', '🏠', '🛋️', '🐈', '🐶', '🌿', '💰', '🏦', '💼', '🎁', '🍷', '🚬', '⛪', '🚕', '🎠', '🎨', '🎻', '🏸', '🛀', '🧼', '🔭', '🍔', '🍟', '🍣', '🍼', '👶', '🐾', '💈', '💇', '💄'];
+        const iconPool = ['🍲', '☕', '🍺', '🍰', '🚗', '🚲', '⛽', '✈️', '🛍️', '👕', '📱', '🎮', '🎬', '📚', '💊', '🩺', '🏠', '🛋️', '🐈', '🐶', '🌿', '💰', '🏦', '💼', '🎁', '🍷', '🚬', '⛪', '🎨', '🏸', '🍔', '🍣', '🍼', '👶', '🐾', '💈', '💄'];
+        
+        const entries = ref({
+            "2026-02-10": { diaryText: "UI 修復完成，股市統計對接 TWSE 官方搜尋數據。", feeling: '🤩', records: [{ type: 'expense', amount: 350, category: '餐飲', note: '高雄晚餐' }], photos: [], locations: [{name: "駁二"}] }
+        });
+        const stockPortfolio = ref([{ name: '台積電(2330)', qty: 10, buyPrice: 1000, currentPrice: 1050 }]);
+        const form = ref({ records: [], diaryText: '', feeling: '😊', photos: [], locations: [] });
+        const newRecord = ref({ type: 'expense', amount: null, category: '餐飲', note: '' });
+        const newStock = ref({ name: '', qty: null, buyPrice: null });
         const categoryForm = ref({ name: '', icon: '🍲' });
         let targetCategory = null;
 
-        // 長按分類編輯邏輯
-        let longPressTimer = null;
-        const startCategoryLongPress = (cat) => {
-            longPressTimer = setTimeout(() => {
-                targetCategory = cat;
-                categoryForm.value = { ...cat };
-                showEditCategory.value = true;
-            }, 800);
-        };
-        const endCategoryLongPress = () => clearTimeout(longPressTimer);
-
-        const closeCategoryModal = () => {
-            showAddCategory.value = false;
-            showEditCategory.value = false;
-            categoryForm.value = { name: '', icon: '🍲' };
-        };
-
-        const confirmCategoryAction = () => {
-            if (!categoryForm.value.name.trim()) return;
-            if (showEditCategory.value && targetCategory) {
-                targetCategory.name = categoryForm.value.name.trim();
-                targetCategory.icon = categoryForm.value.icon;
-            } else {
-                categories.value.push({ name: categoryForm.value.name.trim(), icon: categoryForm.value.icon, type: newRecord.value.type });
-            }
-            closeCategoryModal();
-        };
-
-        // 4. 數據核心
-        const entries = ref({
-            "2026-02-10": { diaryText: "UI 全面統一，股市對接 AI 搜尋工具，文字大小縮放實裝！", feeling: '🤩', records: [{ type: 'expense', amount: 350, category: '餐飲', note: '高雄晚餐' }], photos: [], locations: [{name: "駁二藝術特區"}] }
-        });
-        const stockPortfolio = ref([{ name: '台積電(2330)', qty: 10, buyPrice: 1850, currentPrice: 1850 }]);
-
-        const form = ref({ diaryText: '', feeling: '😊', photos: [], locations: [], steps: 0, audio: null, records: [] });
-        const newRecord = ref({ type: 'expense', amount: null, category: '餐飲', note: '' });
-        const newStock = ref({ name: '', qty: null, buyPrice: null });
-
-        // --- 強化重試邏輯與 AI 股市統計 (解決統計錯誤) ---
-        const callGeminiWithRetry = async (symbols, timeStr) => {
-            // 參考 twstock 更新邏輯與證交所數據指令
-            const system = `You are a real-time financial analyst mimicking the library 'twstock'. SEARCH GOOGLE for the LATEST REAL-TIME market closing/成交 prices of the Taiwan stocks provided. You must return data specifically from the Taiwan Stock Exchange (TWSE) context. Respond ONLY with clean JSON: {"2330": 1880}. Current Time: ${timeStr}. If ticker has text like "台積電(2330)", parse it as 2330.`;
-            const maxRetries = 5;
-            let attempt = 0;
-
-            while (attempt < maxRetries) {
-                try {
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: symbols }] }], systemInstruction: { parts: [{ text: system }] }, tools: [{ "google_search": {} }] })
-                    });
-                    if (!response.ok) throw new Error('API Error');
-                    const data = await response.json();
-                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
-                } catch (e) {
-                    attempt++;
-                    if (attempt === maxRetries) throw e;
-                    await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
-                }
-            }
-        };
-
-        const updatePortfolioPrices = async () => {
-            if (!stockPortfolio.value.length) return;
-            isAILoading.value = true;
-            try {
-                const now = new Date();
-                const symbols = stockPortfolio.value.map(s => s.name).join(', ');
-                const resText = await callGeminiWithRetry(symbols, now.toLocaleString());
-                
-                const jsonMatch = resText.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    const priceMap = JSON.parse(jsonMatch[0]);
-                    stockPortfolio.value.forEach(stk => {
-                        const match = Object.keys(priceMap).find(k => stk.name.includes(k) || k.includes(stk.name));
-                        if (match) stk.currentPrice = priceMap[match];
-                    });
-                    lastSyncTime.value = now.toLocaleTimeString();
-                }
-            } catch (e) { 
-                console.error("Stock Update Error:", e);
-            }
-            isAILoading.value = false;
-        };
-
-        // --- 核心優化：動態縮放下拉關閉手勢 (隨指縮放) ---
-        const touchYStart = ref(0);
-        const modalDeltaY = ref(0);
-        const isDraggingModal = ref(false);
-
-        const handleModalTouchStart = (e) => {
-            const modalContent = e.currentTarget;
-            if (modalContent.scrollTop <= 0) {
-                touchYStart.value = e.touches[0].clientY;
-                isDraggingModal.value = true;
-            }
-        };
-
-        const handleModalTouchMove = (e) => {
-            if (!isDraggingModal.value) return;
-            const currentY = e.touches[0].clientY;
-            const deltaY = currentY - touchYStart.value;
-            
-            if (deltaY > 0) {
-                modalDeltaY.value = deltaY;
-                // 下滑時阻止原生滾動
-                if (e.cancelable) e.preventDefault();
-            } else {
-                modalDeltaY.value = 0;
-                isDraggingModal.value = false;
-            }
-        };
-
-        const handleModalTouchEnd = () => {
-            if (!isDraggingModal.value) return;
-            if (modalDeltaY.value > 150) {
-                showAddModal.value = false;
-            }
-            modalDeltaY.value = 0;
-            isDraggingModal.value = false;
-        };
-
-        const modalStyle = computed(() => {
-            if (!isDraggingModal.value && modalDeltaY.value === 0) return {};
-            // 計算縮放：下滑越深縮越小，最小 0.85
-            const scale = Math.max(0.85, 1 - (modalDeltaY.value / 1500));
-            // 計算透明度
-            const opacity = Math.max(0.7, 1 - (modalDeltaY.value / 800));
-            return {
-                transform: `translateY(${modalDeltaY.value}px) scale(${scale})`,
-                opacity: opacity,
-                transformOrigin: 'bottom center'
-            };
+        // 3. 計算屬性
+        const currentDayKey = computed(() => `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(selectedDay.value).padStart(2, '0')}`);
+        const currentDayData = computed(() => entries.value[currentDayKey.value]);
+        const daysInMonth = computed(() => new Date(currentYear.value, currentMonth.value + 1, 0).getDate());
+        const firstDayOfMonth = computed(() => new Date(currentYear.value, currentMonth.value, 1).getDay());
+        const selectedDateString = computed(() => {
+            if (settings.value.lang === 'zh') return `${currentYear.value}年 ${currentMonth.value + 1}月 ${selectedDay.value}日`;
+            return `${selectedDay.value} ${t('weekdays')[new Date(currentYear.value, currentMonth.value, selectedDay.value).getDay()]}, ${currentMonth+1}/${currentYear.value}`;
         });
 
-        // 財務統計
+        const dayTotalIncome = computed(() => (currentDayData.value?.records || []).filter(r => r.type === 'income').reduce((a, b) => a + (b.amount || 0), 0));
+        const dayTotalExpense = computed(() => (currentDayData.value?.records || []).filter(r => r.type === 'expense').reduce((a, b) => a + (b.amount || 0), 0));
+        const dayNetBalance = computed(() => dayTotalIncome.value - dayTotalExpense.value);
+
         const allDataTotals = computed(() => {
             let inc = 0, exp = 0;
             Object.values(entries.value).forEach(e => {
@@ -764,16 +647,18 @@ createApp({
             });
             return { income: inc, expense: exp, net: inc - exp };
         });
-        const stockTotalValue = computed(() => stockPortfolio.value.reduce((s, x) => s + (x.currentPrice * x.qty), 0));
-        const stockTotalProfit = computed(() => stockPortfolio.value.reduce((s, x) => s + ((x.currentPrice - x.buyPrice) * x.qty), 0));
+
+        const stockTotalValue = computed(() => stockPortfolio.value.reduce((s, x) => s + ((x.currentPrice || x.buyPrice) * x.qty), 0));
+        const stockTotalProfit = computed(() => stockPortfolio.value.reduce((s, x) => s + (((x.currentPrice || x.buyPrice) - x.buyPrice) * x.qty), 0));
         const netWorth = computed(() => allDataTotals.value.net + stockTotalValue.value);
 
         const chartCategories = computed(() => {
             const totals = {};
             Object.keys(entries.value).forEach(dateKey => {
-                const [y, m, d] = dateKey.split('-').map(Number);
-                let match = chartRange.value === 'all' || (chartRange.value === 'year' && y === currentYear.value) || (chartRange.value === 'month' && m === currentMonth.value+1) || (chartRange.value === 'day' && d === selectedDay.value);
-                if (match) (entries.value[dateKey].records || []).forEach(r => { if (r.type === chartMode.value) totals[r.category] = (totals[r.category] || 0) + r.amount; });
+                const [y, m] = dateKey.split('-').map(Number);
+                if (y === currentYear.value && (m === currentMonth.value + 1)) {
+                    (entries.value[dateKey].records || []).forEach(r => { if (r.type === chartMode.value) totals[r.category] = (totals[r.category] || 0) + r.amount; });
+                }
             });
             return Object.keys(totals).map((n, i) => ({ name: n, value: totals[n], color: ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#ec4899', '#8b5cf6'][i % 6] }));
         });
@@ -784,62 +669,130 @@ createApp({
             return parts.length ? `conic-gradient(${parts.join(', ')})` : '#f1f5f9';
         });
 
-        // 多媒體 & 紀錄
-        const startRecording = async () => {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                const reader = new FileReader(); reader.onload = (f) => { form.value.audio = f.target.result; }; reader.readAsDataURL(blob); audioChunks = [];
-            };
-            mediaRecorder.start(); isRecording.value = true;
+        const yearRange = computed(() => { const y = new Date().getFullYear(); return Array.from({length: 12}, (_, i) => y - 5 + i); });
+        const currentCategories = computed(() => categories.value.filter(c => c.type === newRecord.value.type));
+
+        // 4. 方法定義
+        const changeYear = (delta) => currentYear.value += delta;
+        const changeMonth = (delta) => { 
+            let nm = currentMonth.value + delta;
+            if (nm > 11) { nm = 0; currentYear.value++; }
+            else if (nm < 0) { nm = 11; currentYear.value--; }
+            currentMonth.value = nm;
         };
-        const stopRecording = () => { if (mediaRecorder) { mediaRecorder.stop(); isRecording.value = false; } };
-        const playAudio = (url) => new Audio(url).play();
+
+        const showError = (msg) => { errorMsg.value = msg; setTimeout(() => { errorMsg.value = ''; }, 3000); };
+
+        const addNewRecord = () => { if (newRecord.value.amount) { form.value.records.push({ ...newRecord.value }); newRecord.value.amount = null; newRecord.value.note = ''; } };
+        const addStockItem = () => { if (newStock.value.name) { stockPortfolio.value.push({ ...newStock.value, currentPrice: newStock.value.buyPrice || 0 }); newStock.value = { name: '', qty: null, buyPrice: null }; updateIcons(); } };
+
+        // --- 核心優化：官方股市統計與錯誤通知機制 (參考 twstock 邏輯) ---
+        const updatePortfolioPrices = async () => {
+            if (!stockPortfolio.value.length) return;
+            isAILoading.value = true;
+            
+            const fetchWithRetry = async (symbols, attempt = 0) => {
+                const now = new Date();
+                const system = `You are a real-time data parser specializing in the Taiwan Stock Exchange (TWSE) and Taipei Exchange (TPEx). SEARCH GOOGLE for the ABSOLUTE LATEST trade prices (成交價) on TWSE or TPEx for these symbols: ${symbols}. 
+                Return ONLY a clean JSON object like {"2330": 1050}. If symbols have names like "台積電(2330)", focus ONLY on the ID. DO NOT VIRTUALIZE DATA. If data is unavailable, return an empty object {}. Current User context: ${now.toLocaleString()}.`;
+                
+                try {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `Search real-time TWSE prices for ${symbols}` }] }], systemInstruction: { parts: [{ text: system }] }, tools: [{ "google_search": {} }] })
+                    });
+                    const d = await res.json();
+                    return d.candidates?.[0]?.content?.parts?.[0]?.text;
+                } catch (e) {
+                    if (attempt < 3) {
+                        await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+                        return fetchWithRetry(symbols, attempt + 1);
+                    }
+                    throw e;
+                }
+            };
+
+            try {
+                const syms = stockPortfolio.value.map(s => s.name).join(', ');
+                const t = await fetchWithRetry(syms);
+                if (t) {
+                    const match = t.match(/\{[\s\S]*\}/);
+                    if (match) {
+                        const priceMap = JSON.parse(match[0]);
+                        if (Object.keys(priceMap).length === 0) { showError("資料抓取失敗 (無正確數據)"); }
+                        else {
+                            stockPortfolio.value.forEach(stk => {
+                                const idOnly = stk.name.match(/\d{4,}/)?.[0] || stk.name;
+                                const matchKey = Object.keys(priceMap).find(k => k.includes(idOnly) || idOnly.includes(k));
+                                if (matchKey) stk.currentPrice = priceMap[matchKey];
+                            });
+                            lastSyncTime.value = new Date().toLocaleTimeString();
+                        }
+                    } else { showError("資料抓取失敗"); }
+                }
+            } catch (e) { showError("資料抓取失敗 (網路錯誤)"); }
+            isAILoading.value = false;
+        };
+
         const handleMultiPhotoUpload = (e) => {
             Array.from(e.target.files).slice(0, 10).forEach(file => {
                 const reader = new FileReader(); reader.onload = (f) => form.value.photos.push(f.target.result); reader.readAsDataURL(file);
             });
         };
         const addLocation = () => { if (locationSearch.value.trim()) { form.value.locations.push({ name: locationSearch.value.trim() }); locationSearch.value = ''; updateIcons(); } };
+        const openGoogleMapsSearch = () => window.open(`https://www.google.com/maps`, '_blank');
+        const openGoogleMaps = (n) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(n)}`, '_blank');
+
+        let longPressTimer = null;
+        const startCategoryLongPress = (cat) => {
+            longPressTimer = setTimeout(() => { targetCategory = cat; categoryForm.value = { ...cat }; showEditCategory.value = true; }, 800);
+        };
+        const endCategoryLongPress = () => clearTimeout(longPressTimer);
+        const closeCategoryModal = () => { showAddCategory.value = false; showEditCategory.value = false; categoryForm.value = { name: '', icon: '🍲' }; };
+        const confirmCategoryAction = () => {
+            if (!categoryForm.value.name.trim()) return;
+            if (showEditCategory.value && targetCategory) { targetCategory.name = categoryForm.value.name.trim(); targetCategory.icon = categoryForm.value.icon; }
+            else { categories.value.push({ name: categoryForm.value.name.trim(), icon: categoryForm.value.icon, type: newRecord.value.type }); }
+            closeCategoryModal();
+        };
+
+        const handleModalTouchStart = (e) => { if (e.currentTarget.scrollTop <= 0) { touchYStart.value = e.touches[0].clientY; isDraggingModal.value = true; } };
+        const handleModalTouchMove = (e) => {
+            if (!isDraggingModal.value) return;
+            const d = e.touches[0].clientY - touchYStart.value;
+            if (d > 0) { modalDeltaY.value = d; if (e.cancelable) e.preventDefault(); } else isDraggingModal.value = false;
+        };
+        const handleModalTouchEnd = () => { if (modalDeltaY.value > 150) showAddModal.value = false; modalDeltaY.value = 0; isDraggingModal.value = false; };
+        const modalStyle = computed(() => {
+            if (!isDraggingModal.value && modalDeltaY.value === 0) return {};
+            return { transform: `translateY(${modalDeltaY.value}px) scale(${Math.max(0.85, 1 - modalDeltaY.value/2500)})`, opacity: Math.max(0.7, 1 - modalDeltaY.value/1000), transformOrigin: 'bottom center' };
+        });
 
         const openAddModal = (tab = 'diary') => {
             editTab.value = tab;
-            const key = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(selectedDay.value).padStart(2, '0')}`;
-            form.value = entries.value[key] ? JSON.parse(JSON.stringify(entries.value[key])) : { diaryText: '', feeling: '😊', photos: [], locations: [], steps: 0, audio: null, records: [] };
+            form.value = entries.value[currentDayKey.value] ? JSON.parse(JSON.stringify(entries.value[currentDayKey.value])) : { records: [], diaryText: '', feeling: '😊', photos: [], locations: [] };
             showAddModal.value = true; updateIcons();
         };
-        const saveRecord = () => {
-            const key = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(selectedDay.value).padStart(2, '0')}`;
-            entries.value[key] = JSON.parse(JSON.stringify(form.value));
-            showAddModal.value = false; updateIcons();
-        };
+        const saveRecord = () => { entries.value[currentDayKey.value] = JSON.parse(JSON.stringify(form.value)); showAddModal.value = false; updateIcons(); };
 
-        const addNewRecord = () => { if (newRecord.value.amount) { form.value.records.push({ ...newRecord.value }); newRecord.value.amount = null; newRecord.value.note = ''; } };
-        const addStockItem = () => { if (newStock.value.name) { stockPortfolio.value.push({ ...newStock.value, currentPrice: newStock.value.buyPrice || 0 }); newStock.value = { name: '', qty: null, buyPrice: null }; } };
         const formatNumber = (num) => Math.floor(num || 0).toLocaleString();
         const updateIcons = () => nextTick(() => lucide.createIcons());
-        const openGoogleMaps = (n) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(n)}`, '_blank');
-        const openGoogleMapsSearch = () => window.open(`https://www.google.com/maps`, '_blank');
-
         onMounted(() => updateIcons());
-        watch([currentView, showAddModal, settings, editTab, chartRange, chartMode, showAddCategory, showEditCategory], () => updateIcons(), { deep: true });
+        watch([currentView, showAddModal, settings, editTab, chartRange, chartMode, showYearPicker, showMonthPicker, showAddCategory, showEditCategory], () => updateIcons());
 
         return {
-            currentView, showAddModal, showAddCategory, showEditCategory, chartRange, chartMode, t, settings, currentYear, currentMonth, selectedDay, daysInMonth, firstDayOfMonth,
-            selectedDateString, currentDayData: computed(() => entries.value[`${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(selectedDay.value).padStart(2, '0')}`]),
+            currentView, showAddModal, showYearPicker, showMonthPicker, showAddCategory, showEditCategory, yearRange, chartRange, chartMode, t, settings, currentYear, currentMonth, selectedDay, daysInMonth, firstDayOfMonth,
+            selectedDateString, currentDayData, changeYear, changeMonth,
             getDayEntries: (d) => { const k = `${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const e = entries.value[k]; return { hasDiary: !!(e?.diaryText || e?.photos?.length), hasFinance: !!(e?.records?.length) }; },
             form, saveRecord, openAddModal, allDataTotals, formatNumber, chartCategories, chartTotalValue, pieGradient,
-            dayNetBalance: computed(() => { const e = (currentView.value === 'ledger' ? entries.value[`${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(selectedDay.value).padStart(2,'0')}`] : form.value)?.records || []; return e.filter(r => r.type === 'income').reduce((a, b) => a + b.amount, 0) - e.filter(r => r.type === 'expense').reduce((a, b) => a + b.amount, 0); }),
-            dayTotalIncome: computed(() => (entries.value[`${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(selectedDay.value).padStart(2,'0')}`]?.records || []).filter(r => r.type === 'income').reduce((a, b) => a + b.amount, 0)),
-            dayTotalExpense: computed(() => (entries.value[`${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(selectedDay.value).padStart(2,'0')}`]?.records || []).filter(r => r.type === 'expense').reduce((a, b) => a + b.amount, 0)),
-            editTab, newRecord, currentCategories: computed(() => categories.value.filter(c => c.type === newRecord.value.type)), 
+            dayNetBalance, dayTotalIncome, dayTotalExpense, editTab, newRecord, currentCategories, errorMsg,
             addNewRecord, getCategoryIcon: (n) => categories.value.find(c => c.name === n)?.icon || '❓', iconPool, categoryForm, confirmCategoryAction, closeCategoryModal,
             startCategoryLongPress, endCategoryLongPress, getPhotoGridClass: (c) => c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48'),
-            stockPortfolio, newStock, addStockItem, updatePortfolioPrices, stockTotalValue, stockTotalProfit, isAILoading, lastSyncTime, locationSearch, addLocation,
-            isRecording, startRecording, stopRecording, playAudio, openGoogleMaps, openGoogleMapsSearch, handleMultiPhotoUpload, netWorth,
-            handleModalTouchStart, handleModalTouchMove, handleModalTouchEnd, isDraggingModal, modalStyle
+            stockPortfolio, newStock, addStockItem, updatePortfolioPrices, stockTotalValue, stockTotalProfit, isAILoading, lastSyncTime,
+            handleModalTouchStart, handleModalTouchMove, handleModalTouchEnd, isDraggingModal, modalStyle,
+            handleMultiPhotoUpload, addLocation, locationSearch, openGoogleMaps: (n) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(n)}`, '_blank'), openGoogleMapsSearch,
+            netWorth
         };
     }
 }).mount('#app');
