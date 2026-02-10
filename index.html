@@ -23,12 +23,25 @@
         .border-p { border-color: var(--p-color) !important; }
         .ring-p { --tw-ring-color: var(--p-color) !important; }
 
-        /* 動態文字大小縮放系統 (對標需求: 0.75, 1, 1.25) */
+        /* 防止畫面選取與雙擊放大 (除了輸入框) */
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation; /* 防止雙擊縮放 */
+            -webkit-tap-highlight-color: transparent;
+            background-color: #e2e8f0;
+        }
+
+        input, textarea, select {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+        }
+
+        /* 動態文字大小縮放系統 */
         .app-font-small { font-size: 12px; }
         .app-font-medium { font-size: 16px; }
         .app-font-large { font-size: 20px; }
         
-        /* 比例尺寸微調 */
         .app-font-small h1 { font-size: 1.25rem; }
         .app-font-large h1 { font-size: 1.75rem; }
 
@@ -42,7 +55,6 @@
             transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* 照片排版網格 */
         .photo-grid-1 { grid-template-columns: 1fr; }
         .photo-grid-2 { grid-template-columns: 1fr 1fr; }
         .photo-grid-3 { grid-template-areas: "a b" "a c"; grid-template-columns: 1.5fr 1fr; }
@@ -63,15 +75,21 @@
         }
         .nav-active { font-weight: 900; }
 
-        /* 防止橫向滑動且允許縱向滑動關閉手勢 */
+        /* 鎖定滾動區域 */
         .modal-scrollable {
             touch-action: pan-y;
             overflow-x: hidden;
             overflow-y: auto;
+            will-change: transform, opacity;
+        }
+
+        /* 下拉關閉動畫過渡 */
+        .modal-transition {
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
         }
     </style>
 </head>
-<body class="bg-slate-200 text-slate-900 antialiased overflow-hidden">
+<body class="antialiased overflow-hidden">
 
 <div id="app" v-cloak class="flex justify-center items-center app-container" :style="{'--p-color': settings.themeColor}">
     <!-- App 主體容器 -->
@@ -155,7 +173,7 @@
                 <div class="flex justify-between items-end px-1">
                     <div>
                         <h2 class="text-[1.5em] font-black text-slate-800">{{ t('stocks') }}</h2>
-                        <p class="text-[0.6em] text-slate-400 font-bold uppercase tracking-widest">Real-time Portfolio</p>
+                        <p class="text-[0.6em] text-slate-400 font-bold uppercase tracking-widest">Real-time AI Stats</p>
                     </div>
                     <button @click="updatePortfolioPrices" :disabled="isAILoading || !stockPortfolio.length" :style="{ backgroundColor: settings.themeColor }" class="text-white px-6 py-2 rounded-full font-black text-[0.7em] shadow-lg active:scale-90 transition-all disabled:opacity-30 flex items-center">
                         <i v-if="isAILoading" data-lucide="loader-2" class="w-3 h-3 mr-2 animate-spin text-white"></i>
@@ -180,7 +198,7 @@
                         </div>
                         <div class="flex justify-between text-[0.6em] font-bold">
                             <span class="opacity-40 uppercase">{{ t('last_sync') }}: {{ lastSyncTime || '---' }}</span>
-                            <span class="text-indigo-400 font-black italic uppercase tracking-widest font-black">TWSE / AI REALTIME</span>
+                            <span class="text-indigo-400 font-black italic uppercase tracking-widest font-black">Official TWSE / AI Engine</span>
                         </div>
                     </div>
                 </div>
@@ -219,9 +237,8 @@
                 </div>
             </section>
 
-            <!-- 視圖 3: 圖表分析 (Charts) -->
+            <!-- 視圖 3: 圖表分析 -->
             <section v-if="currentView === 'charts'" class="p-6 space-y-8 animate-in fade-in">
-                <!-- 圖表彙總資訊 -->
                 <div class="bg-white p-4 rounded-[2rem] card-shadow border border-slate-50 flex items-center justify-between transition-all overflow-hidden">
                     <div class="text-center flex-1 min-w-0">
                         <p class="text-[0.55em] font-black text-green-600 uppercase mb-0.5 truncate">{{ t('income') }}</p>
@@ -278,7 +295,7 @@
                         <div v-for="cat in chartCategories" :key="cat.name" class="flex items-center p-3 rounded-[1.5rem] bg-slate-50/80 border border-slate-100 transition-all hover:bg-slate-100">
                             <div class="w-3 h-3 rounded-full mr-3 shrink-0 shadow-sm" :style="{backgroundColor: cat.color}"></div>
                             <div class="flex flex-col min-w-0">
-                                <span class="text-[9px] font-black text-slate-500 truncate">{{ cat.name }}</span>
+                                <span class="text-[0.9em] font-black text-slate-500 truncate">{{ cat.name }}</span>
                                 <span class="text-xs font-black text-slate-800">${{ formatNumber(cat.value) }}</span>
                             </div>
                         </div>
@@ -286,7 +303,7 @@
                 </div>
             </section>
             
-            <!-- 視圖 4: 設定 (Settings) -->
+            <!-- 視圖 4: 設定 -->
             <section v-if="currentView === 'settings'" class="p-6">
                 <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-8 transition-all">
                     <div class="flex justify-between items-center">
@@ -324,16 +341,19 @@
             </section>
         </main>
 
-        <!-- 彈出編輯窗 (日記與財務統一) -->
+        <!-- 彈出編輯窗 (新增紀錄) -->
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
                 <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
-                <!-- 手勢監聽與樣式優化 -->
-                <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[96vh] overflow-y-auto shadow-2xl hide-scrollbar modal-scrollable"
+                <!-- 加入動態手勢與縮放動畫 -->
+                <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[96vh] shadow-2xl modal-scrollable"
+                    :class="{ 'modal-transition': !isDraggingModal }"
+                    :style="modalStyle"
                     @touchstart="handleModalTouchStart"
+                    @touchmove="handleModalTouchMove"
                     @touchend="handleModalTouchEnd"
                 >
-                    <!-- 關閉按鈕 (右上角) -->
+                    <!-- 關閉按鈕 (右上角 X) -->
                     <button @click="showAddModal = false" class="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 transition-colors z-[110]">
                         <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
@@ -349,7 +369,7 @@
                         <button @click="editTab = 'finance'" :class="editTab === 'finance' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'finance' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_finance') }}</button>
                     </div>
 
-                    <!-- 財務輸入分頁 -->
+                    <!-- 財務分頁 -->
                     <div v-if="editTab === 'finance'" class="space-y-8 pb-24 overflow-x-hidden">
                         <div class="space-y-4">
                             <div v-for="(rec, ridx) in form.records" :key="ridx" class="flex items-center justify-between bg-white p-4 rounded-[1.5rem] card-shadow border border-slate-50 overflow-hidden">
@@ -386,7 +406,7 @@
                                     @mouseup="endCategoryLongPress"
                                     :class="newRecord.category === cat.name ? 'ring-4 ring-indigo-100 bg-white scale-105 shadow-sm' : 'bg-white/40 opacity-70'" class="category-btn transition-all">
                                     <span class="text-xl mb-1 flex items-center justify-center h-8 w-8">{{ cat.icon }}</span>
-                                    <span class="text-[0.6em] font-black text-slate-600 truncate w-full text-center">{{ cat.name }}</span>
+                                    <span class="text-[0.55em] font-black text-slate-600 truncate w-full text-center">{{ cat.name }}</span>
                                 </button>
                                 <button @click="showAddCategory = true" class="category-btn bg-white/40 border border-dashed border-slate-300 active:scale-90 flex items-center justify-center">
                                     <i data-lucide="plus" class="w-6 h-6 text-slate-300"></i>
@@ -404,8 +424,8 @@
                         </div>
                     </div>
 
-                    <!-- 日誌輸入分頁 (鎖定橫向滑動) -->
-                    <div v-if="editTab === 'diary'" class="space-y-8 pb-24 px-1 overflow-x-hidden">
+                    <!-- 心情日誌分頁 (僅上下捲動，鎖定左右) -->
+                    <div v-if="editTab === 'diary'" class="space-y-8 pb-24 px-1 overflow-x-hidden overflow-y-auto">
                         <div class="flex items-center justify-between bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100">
                             <div class="flex items-center">
                                 <div class="w-12 h-12 rounded-2xl bg-white shadow-md flex items-center justify-center mr-4" :class="{'recording-pulse': isRecording}">
@@ -450,7 +470,7 @@
                                 <input v-model="locationSearch" @keyup.enter="addLocation" :placeholder="t('location_ph')" class="flex-1 bg-slate-50 p-4 rounded-2xl text-[0.85em] font-bold outline-none border-2 border-transparent focus:border-p transition-all shadow-inner">
                                 <button @click="addLocation" class="bg-p text-white w-14 rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><i data-lucide="plus" class="w-6 h-6 text-white"></i></button>
                             </div>
-                            <div class="space-y-2 px-1">
+                            <div class="space-y-2">
                                 <div v-for="(loc, lidx) in form.locations" :key="lidx" class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 card-shadow animate-in slide-in-from-bottom">
                                     <div class="flex items-center text-[0.85em] font-black text-indigo-700 cursor-pointer" @click="openGoogleMaps(loc.name)">
                                         <i data-lucide="map-pin" class="w-4 h-4 mr-3 opacity-50"></i>
@@ -521,7 +541,7 @@
                     :class="currentView === v ? 'nav-active scale-110' : 'text-slate-300'"
                 >
                     <i :data-lucide="v === 'charts' ? 'pie-chart' : 'settings'" class="w-6 h-6"></i>
-                    <span class="text-[0.6em] mt-1.5 uppercase font-black tracking-tighter">{{ t(v) }}</span>
+                    <span class="text-[0.55em] mt-1.5 uppercase font-black tracking-tighter">{{ t(v) }}</span>
                 </button>
             </div>
         </nav>
@@ -549,6 +569,7 @@ createApp({
         let mediaRecorder = null;
         let audioChunks = [];
 
+        // 1. 狀態初始化
         const today = new Date();
         const currentYear = ref(today.getFullYear());
         const currentMonth = ref(today.getMonth());
@@ -600,10 +621,12 @@ createApp({
 
         const t = (key) => dictionary[settings.value.lang][key] || key;
 
+        // 2. 日期與行事曆計算
         const daysInMonth = computed(() => new Date(currentYear.value, currentMonth.value + 1, 0).getDate());
         const firstDayOfMonth = computed(() => new Date(currentYear.value, currentMonth.value, 1).getDay());
         const selectedDateString = computed(() => `${currentYear.value}${t('year')}${currentMonth.value + 1}${t('month')}${selectedDay.value}日`);
 
+        // 3. 分類管理
         const categories = ref([
             { name: '餐飲', icon: '🍲', type: 'expense' }, { name: '交通', icon: '🚗', type: 'expense' },
             { name: '購物', icon: '🛍️', type: 'expense' }, { name: '娛樂', icon: '🎬', type: 'expense' },
@@ -643,18 +666,18 @@ createApp({
         };
 
         const entries = ref({
-            "2026-02-10": { diaryText: "UI 全面統一，股市對接 AI 搜尋工具，文字大小縮放實裝！", feeling: '🤩', records: [{ type: 'expense', amount: 350, category: '餐飲', note: '高雄晚餐' }], photos: [], locations: [{name: "駁二藝術特區"}] }
+            "2026-02-10": { diaryText: "UI 手勢縮放效果優化完成！股市對接 TWSE 官方搜尋數據。", feeling: '🤩', records: [{ type: 'expense', amount: 350, category: '餐飲', note: '高雄晚餐' }], photos: [], locations: [{name: "駁二藝術特區"}] }
         });
-        const stockPortfolio = ref([{ name: '台積電(2330)', qty: 10, buyPrice: 1850, currentPrice: 1850 }]);
+        const stockPortfolio = ref([{ name: '台積電(2330)', qty: 10, buyPrice: 1000, currentPrice: 1000 }]);
 
         const form = ref({ diaryText: '', feeling: '😊', photos: [], locations: [], steps: 0, audio: null, records: [] });
         const newRecord = ref({ type: 'expense', amount: null, category: '餐飲', note: '' });
         const newStock = ref({ name: '', qty: null, buyPrice: null });
 
-        // --- 修正後的 AI 股市統計 (對接 TWSE 數據) ---
+        // --- 核心優化：AI 股市報價 (使用 Google Search 搜尋官方數據) ---
         const callGeminiWithRetry = async (symbols, timeStr) => {
-            // 強化 Prompt 要求 AI 參考台灣證券交易所官網數據
-            const system = `You are a real-time financial analyst. SEARCH GOOGLE specifically for the ABSOLUTE LATEST market prices on the Taiwan Stock Exchange (TWSE). Respond ONLY with clean JSON: {"2330": 1880}. Time: ${timeStr}.`;
+            // 強化系統指令：明確要求參考台灣證券交易所官網數據
+            const system = `You are a real-time financial analyst. Your task is to SEARCH GOOGLE specifically for the CURRENT market closing prices of Taiwan stocks (TWSE) at this moment. Respond ONLY with clean JSON: {"2330": 1050}. Time context: ${timeStr}. Search for the specific stock code provided.`;
             const maxRetries = 5;
             let attempt = 0;
 
@@ -664,7 +687,7 @@ createApp({
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
-                            contents: [{ parts: [{ text: symbols }] }], 
+                            contents: [{ parts: [{ text: `Search real-time TWSE prices for: ${symbols}` }] }], 
                             systemInstruction: { parts: [{ text: system }] }, 
                             tools: [{ "google_search": {} }] 
                         })
@@ -704,19 +727,51 @@ createApp({
             isAILoading.value = false;
         };
 
-        // --- 手勢操作: 下滑關閉彈窗 ---
-        const touchStartY = ref(0);
-        const handleModalTouchStart = (e) => { touchStartY.value = e.touches[0].clientY; };
-        const handleModalTouchEnd = (e) => {
-            const touchEndY = e.changedTouches[0].clientY;
-            const deltaY = touchEndY - touchStartY.value;
+        // --- 核心優化：動態縮放下拉關閉手勢 ---
+        const touchYStart = ref(0);
+        const modalDeltaY = ref(0);
+        const isDraggingModal = ref(false);
+
+        const handleModalTouchStart = (e) => {
             const modalContent = e.currentTarget;
-            // 只有在 modal 捲動到最頂端且下滑超過 150px 時才關閉
-            if (modalContent.scrollTop <= 0 && deltaY > 150) {
-                showAddModal.value = false;
+            if (modalContent.scrollTop <= 0) {
+                touchYStart.value = e.touches[0].clientY;
+                isDraggingModal.value = true;
             }
         };
 
+        const handleModalTouchMove = (e) => {
+            if (!isDraggingModal.value) return;
+            const deltaY = e.touches[0].clientY - touchYStart.value;
+            if (deltaY > 0) {
+                modalDeltaY.value = deltaY;
+                // 防止事件穿透
+                if (e.cancelable) e.preventDefault();
+            } else {
+                modalDeltaY.value = 0;
+                isDraggingModal.value = false;
+            }
+        };
+
+        const handleModalTouchEnd = () => {
+            if (modalDeltaY.value > 150) {
+                showAddModal.value = false;
+            }
+            modalDeltaY.value = 0;
+            isDraggingModal.value = false;
+        };
+
+        const modalStyle = computed(() => {
+            if (!isDraggingModal.value && modalDeltaY.value === 0) return {};
+            const scale = Math.max(0.85, 1 - modalDeltaY.value / 2000);
+            const opacity = Math.max(0.5, 1 - modalDeltaY.value / 1000);
+            return {
+                transform: `translateY(${modalDeltaY.value}px) scale(${scale})`,
+                opacity: opacity
+            };
+        });
+
+        // 財務統計屬性
         const allDataTotals = computed(() => {
             let inc = 0, exp = 0;
             Object.values(entries.value).forEach(e => {
@@ -726,6 +781,7 @@ createApp({
         });
         const stockTotalValue = computed(() => stockPortfolio.value.reduce((s, x) => s + (x.currentPrice * x.qty), 0));
         const stockTotalProfit = computed(() => stockPortfolio.value.reduce((s, x) => s + ((x.currentPrice - x.buyPrice) * x.qty), 0));
+        const netWorth = computed(() => allDataTotals.value.net + stockTotalValue.value);
 
         const chartCategories = computed(() => {
             const totals = {};
@@ -736,6 +792,7 @@ createApp({
             });
             return Object.keys(totals).map((n, i) => ({ name: n, value: totals[n], color: ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#ec4899', '#8b5cf6'][i % 6] }));
         });
+
         const chartTotalValue = computed(() => chartCategories.value.reduce((a, b) => a + b.value, 0) || 0);
         const pieGradient = computed(() => {
             let offset = 0; const total = chartTotalValue.value || 1;
@@ -796,7 +853,7 @@ createApp({
             startCategoryLongPress, endCategoryLongPress, getPhotoGridClass: (c) => c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48'),
             stockPortfolio, newStock, addStockItem, updatePortfolioPrices, stockTotalValue, stockTotalProfit, isAILoading, lastSyncTime, locationSearch, addLocation,
             isRecording, startRecording, stopRecording, playAudio, openGoogleMaps, openGoogleMapsSearch, handleMultiPhotoUpload, netWorth: computed(() => allDataTotals.value.net + stockTotalValue.value),
-            handleModalTouchStart, handleModalTouchEnd
+            handleModalTouchStart, handleModalTouchMove, handleModalTouchEnd, isDraggingModal, modalStyle
         };
     }
 }).mount('#app');
