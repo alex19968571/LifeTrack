@@ -233,6 +233,10 @@
                             <p class="text-[0.9em] text-slate-600 leading-relaxed truncate">{{ currentDayData.diaryText || t('no_diary_text') }}</p>
                         </div>
                     </div>
+                    <div v-else class="text-center py-20 opacity-30 text-[0.8em] font-black flex flex-col items-center">
+                        <i data-lucide="inbox" class="w-10 h-10 mb-2"></i>
+                        {{ t('no_data_hint') }}
+                    </div>
                 </div>
             </section>
 
@@ -361,7 +365,7 @@
                             <div v-for="color in ['#4f46e5', '#10b981', '#f43f5e', '#1e293b', '#f59e0b']" 
                                 @click="settings.themeColor = color"
                                 :style="{ backgroundColor: color }" 
-                                class="w-8 h-8 rounded-full cursor-pointer border-2 transition-all shadow-md active:scale-75"
+                                class="w-8 h-8 rounded-full cursor-pointer border-2 shadow-md active:scale-75 transition-all"
                                 :class="settings.themeColor === color ? 'border-white ring-2 ring-indigo-200 scale-125' : 'border-transparent'">
                             </div>
                         </div>
@@ -406,31 +410,53 @@
                         <button @click="editTab = 'finance'" :class="editTab === 'finance' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'finance' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_finance') }}</button>
                     </div>
 
-                    <!-- 財務輸入 -->
+                    <!-- 財務輸入 (排版優化：清單在上，新增在下) -->
                     <div v-if="editTab === 'finance'" class="space-y-8 pb-24">
-                        <div class="grid grid-cols-4 gap-3 px-1">
-                            <button v-for="cat in currentCategories" :key="cat.name" 
-                                @click="newRecord.category = cat.name" 
-                                @touchstart="startCategoryLongPress(cat)" @touchend="endCategoryLongPress"
-                                @mousedown="startCategoryLongPress(cat)" @mouseup="endCategoryLongPress"
-                                :class="newRecord.category === cat.name ? 'ring-4 ring-indigo-100 bg-white scale-105 shadow-sm' : 'bg-white/40 opacity-70'" 
-                                class="category-btn transition-all"
-                            >
-                                <span class="text-xl mb-1 flex items-center justify-center h-8 w-8">{{ cat.icon }}</span>
-                                <span class="text-[0.6em] font-black text-slate-600 truncate w-full text-center">{{ cat.name }}</span>
-                            </button>
-                            <button @click="showAddCategory = true" class="category-btn bg-white/40 border border-dashed border-slate-300 active:scale-90 flex items-center justify-center">
-                                <i data-lucide="plus" class="w-6 h-6 text-slate-300"></i>
-                            </button>
+                        <!-- 現有明細列表 (每筆都顯示) -->
+                        <div class="space-y-4">
+                            <div v-for="(rec, ridx) in form.records" :key="ridx" class="flex items-center justify-between bg-white p-4 rounded-[1.5rem] card-shadow border border-slate-50 overflow-hidden">
+                                <div class="flex items-center min-w-0 flex-1">
+                                    <div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mr-3 text-[1.25em] shrink-0 shadow-inner">{{ getCategoryIcon(rec.category) }}</div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-sm font-black text-slate-800">{{ rec.category }}</p>
+                                        <p v-if="rec.note" class="text-[10px] text-slate-400 font-bold truncate pr-4">{{ rec.note }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span :class="rec.type === 'income' ? 'text-green-600' : 'text-red-600'" class="font-mono font-black">+{{ formatNumber(rec.amount) }}</span>
+                                    <button @click="form.records.splice(ridx, 1)" class="text-slate-200 hover:text-red-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                </div>
+                            </div>
                         </div>
+
+                        <!-- 新增收支明細區塊 -->
                         <div class="p-6 bg-slate-50/80 rounded-[2.5rem] border border-slate-200 space-y-6">
                             <div class="flex justify-between items-center px-1">
-                                <span class="text-[0.7em] font-black text-slate-400 tracking-widest uppercase">{{ t('add_new_line') }}</span>
-                                <div class="flex bg-white p-1 rounded-full shadow-sm text-[0.6em] font-black border border-slate-100 overflow-hidden">
+                                <span class="text-[10px] font-black text-slate-400 tracking-widest uppercase">{{ t('add_new_line') }}</span>
+                                <div class="flex bg-white p-1 rounded-full shadow-sm text-[9px] font-black border border-slate-100 overflow-hidden">
                                     <button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-red-500 text-white shadow-md' : 'text-red-400'" class="px-6 py-2.5 transition-all">{{ t('expense_short') }}</button>
                                     <button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-green-500 text-white shadow-md' : 'text-green-400'" class="px-6 py-2.5 transition-all">{{ t('income_short') }}</button>
                                 </div>
                             </div>
+
+                            <!-- 分類選擇 (併入新增區塊) -->
+                            <div class="grid grid-cols-4 gap-3">
+                                <button v-for="cat in currentCategories" :key="cat.name" 
+                                    @click="newRecord.category = cat.name" 
+                                    @touchstart="startCategoryLongPress(cat)" @touchend="endCategoryLongPress"
+                                    @mousedown="startCategoryLongPress(cat)" @mouseup="endCategoryLongPress"
+                                    :class="newRecord.category === cat.name ? 'ring-4 ring-indigo-100 bg-white scale-105 shadow-sm' : 'bg-white/40 opacity-70'" 
+                                    class="category-btn transition-all"
+                                >
+                                    <span class="text-xl mb-1 flex items-center justify-center h-8 w-8">{{ cat.icon }}</span>
+                                    <span class="text-[0.6em] font-black text-slate-600 truncate w-full text-center">{{ cat.name }}</span>
+                                </button>
+                                <button @click="showAddCategory = true" class="category-btn bg-white/40 border border-dashed border-slate-300 active:scale-90 flex items-center justify-center">
+                                    <i data-lucide="plus" class="w-6 h-6 text-slate-300"></i>
+                                </button>
+                            </div>
+
+                            <!-- 金額與備註 (3:7) -->
                             <div class="flex gap-3 items-center w-full">
                                 <div class="w-[30%] shrink-0">
                                     <input type="number" v-model="newRecord.amount" class="w-full bg-white p-4 rounded-2xl outline-none font-black text-[1em] border-none shadow-inner text-center" :placeholder="t('amount_ph')">
@@ -585,7 +611,7 @@ createApp({
                 lang_label: '語言選擇', theme_label: '配色方案', font_label: '文字大小', new_record: '紀錄詳情', save: '保存',
                 font_small: '小 (0.75x)', font_medium: '中 (1.0x)', font_large: '大 (1.25x)', journal_placeholder: '分享今天發生的事...',
                 voice_memo: '語音備忘', recorded: '錄音已存', recording: '錄音中', amount_ph: '金額', note_ph: '備註', add_to_list: '加入',
-                stat_btn: '智慧統計', no_diary_text: '尚未填寫今日日誌...', market_value: '市值', total_profit: '總損益',
+                stat_btn: '智慧統計', no_diary_text: '尚未填寫今日日誌...', market_value: '組合市值', total_profit: '總損益',
                 photo: '相片', location_map: '地點', search_on_map: '地圖', location_ph: '輸入地點...', add_new_line: '新增收支明細', journal_feeling: '心情感受',
                 edit_cat_title: '編輯類別', custom_cat_title: '自定義類別', cat_name_ph: '名稱'
             },
@@ -600,13 +626,14 @@ createApp({
                 stock_name_ph: 'Symbol', stock_qty_ph: 'Shares', stock_buy_ph: 'Cost', add_stock_btn: 'Add',
                 shares_unit: 'shs', unrealized_pl: 'Unrealized P/L', unrealized_pl_short: 'U-PL', expense_structure: 'Expenses', income_structure: 'Income',
                 lang_label: 'Language', theme_label: 'Theme', font_label: 'Font Size', new_record: 'Details', save: 'Save',
-                add_new_line: 'Add Detail', journal_feeling: 'Feelings'
+                add_new_line: 'Add Detail', journal_feeling: 'Feelings', photo: 'Photos', location_map: 'Locations', journal_placeholder: 'Tell me...',
+                stat_btn: 'AI Stats', market_value: 'Value', total_profit: 'P/L'
             }
         };
 
         const t = (key) => dictionary[settings.value.lang][key] || key;
 
-        // 2. 核心數據
+        // 2. 核心數據與方法
         const categories = ref([
             { name: '餐飲', icon: '🍲', type: 'expense' }, { name: '交通', icon: '🚗', type: 'expense' },
             { name: '購物', icon: '🛍️', type: 'expense' }, { name: '娛樂', icon: '🎬', type: 'expense' },
@@ -614,10 +641,10 @@ createApp({
             { name: '薪資', icon: '💰', type: 'income' }, { name: '紅利', icon: '🧧', type: 'income' },
             { name: '其它', icon: '📦', type: 'expense' }
         ]);
-        const iconPool = ['🍲', '☕', '🍺', '🍰', '🚗', '🚲', '⛽', '✈️', '🛍️', '👕', '📱', '🎮', '🎬', '📚', '💊', '🩺', '🏠', '🛋️', '🐈', '🐶', '🌿', '💰', '🏦', '💼', '🎁', '🍷', '🚬', '⛪', '🎨', '🏸', '🍔', '🍣', '🍼', '👶', '🐾', '💈', '💄'];
+        const iconPool = ['🍲', '☕', '🍺', '🍰', '🚗', '🚲', '⛽', '✈️', '🛍️', '👕', '📱', '🎮', '🎬', '📚', '💊', '🩺', '🏠', '🛋️', '🐈', '🐶', '🌿', '💰', '🏦', '💼', '🎁', '🍷', '🚬', '⛪', '🎨', '🏸', '🍔', '🍣', '🍼', '👶', '🐾', '💈', '💇', '💄'];
         
         const entries = ref({
-            "2026-02-10": { diaryText: "UI 修復完成，股市統計對接 TWSE 官方搜尋數據。", feeling: '🤩', records: [{ type: 'expense', amount: 350, category: '餐飲', note: '高雄晚餐' }], photos: [], locations: [{name: "駁二"}] }
+            "2026-02-10": { diaryText: "UI 排版優化完成，收支分類下移，語系完全修復。", feeling: '🤩', records: [{ type: 'expense', amount: 350, category: '餐飲', note: '高雄晚餐' }], photos: [], locations: [{name: "高流中心"}] }
         });
         const stockPortfolio = ref([{ name: '台積電(2330)', qty: 10, buyPrice: 1000, currentPrice: 1050 }]);
         const form = ref({ records: [], diaryText: '', feeling: '😊', photos: [], locations: [] });
@@ -626,7 +653,7 @@ createApp({
         const categoryForm = ref({ name: '', icon: '🍲' });
         let targetCategory = null;
 
-        // 3. 計算屬性
+        // 計算屬性
         const currentDayKey = computed(() => `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(selectedDay.value).padStart(2, '0')}`);
         const currentDayData = computed(() => entries.value[currentDayKey.value]);
         const daysInMonth = computed(() => new Date(currentYear.value, currentMonth.value + 1, 0).getDate());
@@ -686,22 +713,23 @@ createApp({
         const addNewRecord = () => { if (newRecord.value.amount) { form.value.records.push({ ...newRecord.value }); newRecord.value.amount = null; newRecord.value.note = ''; } };
         const addStockItem = () => { if (newStock.value.name) { stockPortfolio.value.push({ ...newStock.value, currentPrice: newStock.value.buyPrice || 0 }); newStock.value = { name: '', qty: null, buyPrice: null }; updateIcons(); } };
 
-        // --- 核心優化：官方股市統計與錯誤通知機制 (參考 twstock 邏輯) ---
+        // --- 核心優化：官方股市統計與錯誤通知機制 ---
         const updatePortfolioPrices = async () => {
             if (!stockPortfolio.value.length) return;
             isAILoading.value = true;
             
             const fetchWithRetry = async (symbols, attempt = 0) => {
                 const now = new Date();
-                const system = `You are a real-time data parser specializing in the Taiwan Stock Exchange (TWSE) and Taipei Exchange (TPEx). SEARCH GOOGLE for the ABSOLUTE LATEST trade prices (成交價) on TWSE or TPEx for these symbols: ${symbols}. 
-                Return ONLY a clean JSON object like {"2330": 1050}. If symbols have names like "台積電(2330)", focus ONLY on the ID. DO NOT VIRTUALIZE DATA. If data is unavailable, return an empty object {}. Current User context: ${now.toLocaleString()}.`;
+                const system = `You are a real-time TWSE market data tool. SEARCH GOOGLE for the ABSOLUTE LATEST trade prices (成交價) on the Taiwan Stock Exchange for: ${symbols}. 
+                Return ONLY clean JSON like {"2330": 1050}. DO NOT ESTIMATE DATA. If not found, return {}. User Context: ${now.toLocaleString()}.`;
                 
                 try {
                     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `Search real-time TWSE prices for ${symbols}` }] }], systemInstruction: { parts: [{ text: system }] }, tools: [{ "google_search": {} }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `Search real-time prices for ${symbols}` }] }], systemInstruction: { parts: [{ text: system }] }, tools: [{ "google_search": {} }] })
                     });
+                    if (!res.ok) throw new Error();
                     const d = await res.json();
                     return d.candidates?.[0]?.content?.parts?.[0]?.text;
                 } catch (e) {
@@ -720,7 +748,7 @@ createApp({
                     const match = t.match(/\{[\s\S]*\}/);
                     if (match) {
                         const priceMap = JSON.parse(match[0]);
-                        if (Object.keys(priceMap).length === 0) { showError("資料抓取失敗 (無正確數據)"); }
+                        if (Object.keys(priceMap).length === 0) { showError("資料抓取失敗 (無最新數據)"); }
                         else {
                             stockPortfolio.value.forEach(stk => {
                                 const idOnly = stk.name.match(/\d{4,}/)?.[0] || stk.name;
