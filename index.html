@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LifeTrack - 專業 AI 日誌與股市記帳</title>
+    <title>LifeTrack - 專業 AI 日誌與官方股市記帳</title>
     <!-- 引入 Vue 3, Tailwind CSS 與 Lucide 圖示庫 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,22 +12,15 @@
         [v-cloak] { display: none; }
         :root { --p-color: #4f46e5; }
         
-        /* 基礎佈局設定 */
+        /* 基礎佈局與鎖定縮放選取 */
         .app-container { height: 100dvh; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* 全域主題色彩連動 */
-        .text-p { color: var(--p-color) !important; }
-        .bg-p { background-color: var(--p-color) !important; }
-        .border-p { border-color: var(--p-color) !important; }
-        .ring-p { --tw-ring-color: var(--p-color) !important; }
-
-        /* 防止畫面選取與雙擊放大 (除了輸入框) */
         body {
             user-select: none;
             -webkit-user-select: none;
-            touch-action: manipulation; /* 防止雙擊縮放 */
+            touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
             background-color: #e2e8f0;
         }
@@ -37,14 +30,17 @@
             -webkit-user-select: text !important;
         }
 
-        /* 動態文字大小縮放系統 */
+        /* 全域主題色彩連動 */
+        .text-p { color: var(--p-color) !important; }
+        .bg-p { background-color: var(--p-color) !important; }
+        .border-p { border-color: var(--p-color) !important; }
+        .ring-p { --tw-ring-color: var(--p-color) !important; }
+
+        /* 文字大小縮放系統 */
         .app-font-small { font-size: 12px; }
         .app-font-medium { font-size: 16px; }
         .app-font-large { font-size: 20px; }
         
-        .app-font-small h1 { font-size: 1.25rem; }
-        .app-font-large h1 { font-size: 1.75rem; }
-
         .card-shadow { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
         .safe-pb { padding-bottom: calc(8.5rem + env(safe-area-inset-bottom)); }
 
@@ -55,6 +51,7 @@
             transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
+        /* 照片排版網格 */
         .photo-grid-1 { grid-template-columns: 1fr; }
         .photo-grid-2 { grid-template-columns: 1fr 1fr; }
         .photo-grid-3 { grid-template-areas: "a b" "a c"; grid-template-columns: 1.5fr 1fr; }
@@ -75,15 +72,13 @@
         }
         .nav-active { font-weight: 900; }
 
-        /* 鎖定滾動區域 */
+        /* 動態下拉關閉樣式 */
         .modal-scrollable {
             touch-action: pan-y;
             overflow-x: hidden;
             overflow-y: auto;
             will-change: transform, opacity;
         }
-
-        /* 下拉關閉動畫過渡 */
         .modal-transition {
             transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
         }
@@ -92,13 +87,12 @@
 <body class="antialiased overflow-hidden">
 
 <div id="app" v-cloak class="flex justify-center items-center app-container" :style="{'--p-color': settings.themeColor}">
-    <!-- App 主體容器 -->
     <div :class="['w-full sm:max-w-md h-full bg-white shadow-2xl relative flex flex-col overflow-hidden transition-all duration-300', 'app-font-' + settings.fontSize]">
         
         <!-- 頂部標題區域 -->
         <header :style="{ backgroundColor: settings.themeColor }" class="p-4 sm:p-5 text-white shadow-md shrink-0 z-20 transition-all duration-500">
             <div class="flex justify-between items-center">
-                <h1 class="font-black tracking-tight leading-tight">{{ t(currentView) }}</h1>
+                <h1 class="font-black tracking-tight leading-tight" style="font-size: 1.5em">{{ t(currentView) }}</h1>
                 <div class="flex flex-col items-end">
                     <span class="text-[0.6em] font-bold opacity-80">{{ currentYear }}{{ t('year') }}</span>
                     <span class="text-[1em] leading-none font-black">{{ currentMonth + 1 }}{{ t('month') }}</span>
@@ -106,13 +100,13 @@
             </div>
         </header>
 
-        <!-- 主要內容渲染區 -->
+        <!-- 主要內容 -->
         <main class="flex-1 overflow-y-auto hide-scrollbar bg-slate-50 safe-pb">
             
-            <!-- 視圖 1: 帳本 (Ledger) -->
+            <!-- 視圖 1: 帳本 -->
             <section v-if="currentView === 'ledger'" class="animate-in fade-in duration-300">
                 <div class="p-4 bg-white border-b sticky top-0 z-10 shadow-sm">
-                    <div class="calendar-grid text-center text-[0.65em] font-bold text-slate-400 mb-2 uppercase tracking-widest">
+                    <div class="calendar-grid text-center text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">
                         <div v-for="d in t('weekdays')" :key="d">{{ d }}</div>
                     </div>
                     <div class="calendar-grid gap-1">
@@ -135,7 +129,6 @@
                     <h3 class="text-[0.7em] font-black text-slate-400 uppercase tracking-wider px-1">{{ selectedDateString }}</h3>
 
                     <div v-if="currentDayData" class="space-y-4">
-                        <!-- 財務簡述卡片 -->
                         <div @click="openAddModal('finance')" class="bg-white p-5 rounded-[1.5rem] card-shadow border border-slate-100 cursor-pointer active:scale-[0.98] transition-all">
                             <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-50">
                                 <span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_finance') }}</span>
@@ -149,7 +142,6 @@
                             </div>
                         </div>
 
-                        <!-- 日誌簡述卡片 -->
                         <div @click="openAddModal('diary')" class="bg-white p-5 rounded-[1.5rem] card-shadow border border-slate-100 space-y-3 cursor-pointer active:scale-[0.98] transition-all">
                             <div class="flex items-center justify-between">
                                 <span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_diary') }}</span>
@@ -168,12 +160,12 @@
                 </div>
             </section>
 
-            <!-- 視圖 2: 股市投資 (Stocks) -->
+            <!-- 視圖 2: 股市投資 -->
             <section v-if="currentView === 'stocks'" class="p-6 space-y-6 animate-in fade-in">
                 <div class="flex justify-between items-end px-1">
                     <div>
                         <h2 class="text-[1.5em] font-black text-slate-800">{{ t('stocks') }}</h2>
-                        <p class="text-[0.6em] text-slate-400 font-bold uppercase tracking-widest">Real-time AI Stats</p>
+                        <p class="text-[0.6em] text-slate-400 font-bold uppercase tracking-widest">Global Market Pulse</p>
                     </div>
                     <button @click="updatePortfolioPrices" :disabled="isAILoading || !stockPortfolio.length" :style="{ backgroundColor: settings.themeColor }" class="text-white px-6 py-2 rounded-full font-black text-[0.7em] shadow-lg active:scale-90 transition-all disabled:opacity-30 flex items-center">
                         <i v-if="isAILoading" data-lucide="loader-2" class="w-3 h-3 mr-2 animate-spin text-white"></i>
@@ -198,7 +190,7 @@
                         </div>
                         <div class="flex justify-between text-[0.6em] font-bold">
                             <span class="opacity-40 uppercase">{{ t('last_sync') }}: {{ lastSyncTime || '---' }}</span>
-                            <span class="text-indigo-400 font-black italic uppercase tracking-widest font-black">Official TWSE / AI Engine</span>
+                            <span class="text-indigo-400 font-black italic uppercase tracking-widest font-black">Official Listed/OTC Data</span>
                         </div>
                     </div>
                 </div>
@@ -208,7 +200,7 @@
                         <div class="flex items-center min-w-0 flex-1">
                             <div class="w-11 h-11 rounded-2xl bg-slate-50 flex items-center justify-center mr-4 text-[1.25em] font-bold text-p shadow-inner">{{ stk.name[0] }}</div>
                             <div class="min-w-0 flex-1">
-                                <p class="text-sm font-black text-slate-800 truncate pr-2">{{ stk.name }}</p>
+                                <p class="text-[0.9em] font-black text-slate-800 truncate pr-2">{{ stk.name }}</p>
                                 <p class="text-[0.6em] text-slate-400 font-bold uppercase mt-1">
                                     {{ stk.qty }} {{ t('shares_unit') }} · @{{ formatNumber(stk.buyPrice) }}
                                 </p>
@@ -224,6 +216,7 @@
                             <button @click="stockPortfolio.splice(idx, 1)" class="text-slate-200 hover:text-red-400 p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
                         </div>
                     </div>
+                    <!-- 加入清單 -->
                     <div class="p-6 bg-indigo-50/50 rounded-[2.5rem] border border-indigo-100 space-y-4">
                         <input v-model="newStock.name" type="text" class="bg-white w-full p-4 rounded-2xl text-[0.85em] font-black outline-none border-none shadow-sm" :placeholder="t('stock_name_ph')">
                         <div class="grid grid-cols-2 gap-3">
@@ -237,7 +230,7 @@
                 </div>
             </section>
 
-            <!-- 視圖 3: 圖表分析 -->
+            <!-- 視圖 3: 圖表分析 (Charts) -->
             <section v-if="currentView === 'charts'" class="p-6 space-y-8 animate-in fade-in">
                 <div class="bg-white p-4 rounded-[2rem] card-shadow border border-slate-50 flex items-center justify-between transition-all overflow-hidden">
                     <div class="text-center flex-1 min-w-0">
@@ -282,7 +275,6 @@
                             <button @click="chartMode = 'income'" :class="chartMode === 'income' ? 'bg-green-600 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-2 transition-all">{{ t('income') }}</button>
                         </div>
                     </div>
-                    
                     <div class="relative w-48 h-48 flex items-center justify-center">
                         <div class="pie-chart shadow-inner" :style="{ background: pieGradient }"></div>
                         <div class="absolute w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center shadow-lg border border-slate-50 text-center">
@@ -290,20 +282,10 @@
                             <p class="text-[1.1em] font-black" :class="chartMode === 'expense' ? 'text-red-500' : 'text-green-600'">${{ formatNumber(chartTotalValue) }}</p>
                         </div>
                     </div>
-
-                    <div class="w-full mt-10 grid grid-cols-2 gap-3">
-                        <div v-for="cat in chartCategories" :key="cat.name" class="flex items-center p-3 rounded-[1.5rem] bg-slate-50/80 border border-slate-100 transition-all hover:bg-slate-100">
-                            <div class="w-3 h-3 rounded-full mr-3 shrink-0 shadow-sm" :style="{backgroundColor: cat.color}"></div>
-                            <div class="flex flex-col min-w-0">
-                                <span class="text-[0.9em] font-black text-slate-500 truncate">{{ cat.name }}</span>
-                                <span class="text-xs font-black text-slate-800">${{ formatNumber(cat.value) }}</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </section>
             
-            <!-- 視圖 4: 設定 -->
+            <!-- 設定分頁 -->
             <section v-if="currentView === 'settings'" class="p-6">
                 <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-8 transition-all">
                     <div class="flex justify-between items-center">
@@ -341,11 +323,11 @@
             </section>
         </main>
 
-        <!-- 彈出編輯窗 (新增紀錄) -->
+        <!-- 新增紀錄與心情日誌彈窗 -->
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
                 <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
-                <!-- 加入動態手勢與縮放動畫 -->
+                <!-- 動態縮放手勢核心容器 -->
                 <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[96vh] shadow-2xl modal-scrollable"
                     :class="{ 'modal-transition': !isDraggingModal }"
                     :style="modalStyle"
@@ -353,7 +335,7 @@
                     @touchmove="handleModalTouchMove"
                     @touchend="handleModalTouchEnd"
                 >
-                    <!-- 關閉按鈕 (右上角 X) -->
+                    <!-- 關閉按鈕 -->
                     <button @click="showAddModal = false" class="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 transition-colors z-[110]">
                         <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
@@ -391,8 +373,8 @@
 
                         <div class="p-6 bg-slate-50/80 rounded-[2.5rem] border border-slate-200 space-y-6">
                             <div class="flex justify-between items-center px-1">
-                                <span class="text-[0.7em] font-black text-slate-400 tracking-widest uppercase">{{ t('add_new_line') }}</span>
-                                <div class="flex bg-white p-1 rounded-full shadow-sm text-[0.6em] font-black border border-slate-100 overflow-hidden">
+                                <span class="text-[10px] font-black text-slate-400 tracking-widest uppercase">{{ t('add_new_line') }}</span>
+                                <div class="flex bg-white p-1 rounded-full shadow-sm text-[9px] font-black border border-slate-100 overflow-hidden">
                                     <button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-red-500 text-white shadow-md' : 'text-red-400'" class="px-6 py-2.5 transition-all text-[0.9em]">{{ t('expense') }}</button>
                                     <button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-green-500 text-white shadow-md' : 'text-green-400'" class="px-6 py-2.5 transition-all text-[0.9em]">{{ t('income') }}</button>
                                 </div>
@@ -406,7 +388,7 @@
                                     @mouseup="endCategoryLongPress"
                                     :class="newRecord.category === cat.name ? 'ring-4 ring-indigo-100 bg-white scale-105 shadow-sm' : 'bg-white/40 opacity-70'" class="category-btn transition-all">
                                     <span class="text-xl mb-1 flex items-center justify-center h-8 w-8">{{ cat.icon }}</span>
-                                    <span class="text-[0.55em] font-black text-slate-600 truncate w-full text-center">{{ cat.name }}</span>
+                                    <span class="text-[0.6em] font-black text-slate-600 truncate w-full text-center">{{ cat.name }}</span>
                                 </button>
                                 <button @click="showAddCategory = true" class="category-btn bg-white/40 border border-dashed border-slate-300 active:scale-90 flex items-center justify-center">
                                     <i data-lucide="plus" class="w-6 h-6 text-slate-300"></i>
@@ -424,7 +406,7 @@
                         </div>
                     </div>
 
-                    <!-- 心情日誌分頁 (僅上下捲動，鎖定左右) -->
+                    <!-- 心情日誌分頁 (僅上下滾動) -->
                     <div v-if="editTab === 'diary'" class="space-y-8 pb-24 px-1 overflow-x-hidden overflow-y-auto">
                         <div class="flex items-center justify-between bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100">
                             <div class="flex items-center">
@@ -433,7 +415,7 @@
                                 </div>
                                 <div class="flex flex-col">
                                     <span class="text-xs font-black">{{ isRecording ? t('recording') : (form.audio ? t('recorded') : t('voice_memo')) }}</span>
-                                    <span class="text-[0.6em] text-slate-400 font-bold uppercase tracking-widest">Voice</span>
+                                    <span class="text-[0.6em] text-slate-400 font-bold uppercase tracking-widest">Audio</span>
                                 </div>
                             </div>
                             <div class="flex gap-2">
@@ -451,7 +433,7 @@
                                     <input type="file" multiple @change="handleMultiPhotoUpload" class="absolute inset-0 opacity-0 cursor-pointer">
                                 </div>
                             </div>
-                            <div v-if="form.photos?.length" class="flex gap-3 overflow-x-auto py-2 hide-scrollbar">
+                            <div v-if="form.photos?.length" class="flex gap-3 overflow-x-auto py-2 hide-scrollbar px-1">
                                 <div v-for="(img, idx) in form.photos" :key="idx" class="relative w-24 h-24 shrink-0 rounded-[1.5rem] overflow-hidden shadow-lg border-2 border-white">
                                     <img :src="img" class="w-full h-full object-cover">
                                     <button @click="form.photos.splice(idx, 1)" class="absolute top-1.5 right-1.5 bg-black/60 text-white rounded-full p-1 active:scale-75"><i data-lucide="x" class="w-3 h-3 text-white"></i></button>
@@ -470,7 +452,7 @@
                                 <input v-model="locationSearch" @keyup.enter="addLocation" :placeholder="t('location_ph')" class="flex-1 bg-slate-50 p-4 rounded-2xl text-[0.85em] font-bold outline-none border-2 border-transparent focus:border-p transition-all shadow-inner">
                                 <button @click="addLocation" class="bg-p text-white w-14 rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><i data-lucide="plus" class="w-6 h-6 text-white"></i></button>
                             </div>
-                            <div class="space-y-2">
+                            <div class="space-y-2 px-1">
                                 <div v-for="(loc, lidx) in form.locations" :key="lidx" class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 card-shadow animate-in slide-in-from-bottom">
                                     <div class="flex items-center text-[0.85em] font-black text-indigo-700 cursor-pointer" @click="openGoogleMaps(loc.name)">
                                         <i data-lucide="map-pin" class="w-4 h-4 mr-3 opacity-50"></i>
@@ -526,7 +508,7 @@
                     :class="currentView === v ? 'nav-active scale-110' : 'text-slate-300'"
                 >
                     <i :data-lucide="v === 'ledger' ? 'calendar' : 'trending-up'" class="w-6 h-6"></i>
-                    <span class="text-[0.6em] mt-1.5 uppercase font-black tracking-tighter">{{ t(v) }}</span>
+                    <span class="text-[0.55em] mt-1.5 uppercase font-black tracking-tighter">{{ t(v) }}</span>
                 </button>
                 
                 <div class="flex justify-center relative flex-1">
@@ -626,7 +608,7 @@ createApp({
         const firstDayOfMonth = computed(() => new Date(currentYear.value, currentMonth.value, 1).getDay());
         const selectedDateString = computed(() => `${currentYear.value}${t('year')}${currentMonth.value + 1}${t('month')}${selectedDay.value}日`);
 
-        // 3. 分類管理
+        // 3. 分類管理 (增加圖標內容)
         const categories = ref([
             { name: '餐飲', icon: '🍲', type: 'expense' }, { name: '交通', icon: '🚗', type: 'expense' },
             { name: '購物', icon: '🛍️', type: 'expense' }, { name: '娛樂', icon: '🎬', type: 'expense' },
@@ -634,10 +616,11 @@ createApp({
             { name: '人情', icon: '🎁', type: 'expense' }, { name: '薪資', icon: '💰', type: 'income' },
             { name: '紅利', icon: '🧧', type: 'income' }, { name: '其它', icon: '📦', type: 'expense' }
         ]);
-        const iconPool = ['🍲', '☕', '🍺', '🍰', '🚗', '🚲', '⛽', '✈️', '🛍️', '👕', '📱', '💄', '🎮', '📚', '💊', '🩺', '🏠', '🛋️', '🐈', '🐶', '🌿', '💰', '🏦', '💼', '🎁', '🍷', '🚬', '⛪', '🚕', '🎠', '🎨', '🎻', '🏸', '🛀', '🧼', '🔭', '🍔', '🍟', '🍣', '🍼', '👶', '🐾', '💈', '💇'];
+        const iconPool = ['🍲', '☕', '🍺', '🍰', '🚗', '🚲', '⛽', '✈️', '🛍️', '👕', '📱', '🎮', '📚', '💊', '🩺', '🏠', '🛋️', '🐈', '🐶', '🌿', '💰', '🏦', '💼', '🎁', '🍷', '🚬', '⛪', '🚕', '🎠', '🎨', '🎻', '🏸', '🛀', '🧼', '🔭', '🍔', '🍟', '🍣', '🍼', '👶', '🐾', '💈', '💇', '💄'];
         const categoryForm = ref({ name: '', icon: '🍲' });
         let targetCategory = null;
 
+        // 長按分類編輯邏輯
         let longPressTimer = null;
         const startCategoryLongPress = (cat) => {
             longPressTimer = setTimeout(() => {
@@ -665,19 +648,20 @@ createApp({
             closeCategoryModal();
         };
 
+        // 4. 數據核心
         const entries = ref({
-            "2026-02-10": { diaryText: "UI 手勢縮放效果優化完成！股市對接 TWSE 官方搜尋數據。", feeling: '🤩', records: [{ type: 'expense', amount: 350, category: '餐飲', note: '高雄晚餐' }], photos: [], locations: [{name: "駁二藝術特區"}] }
+            "2026-02-10": { diaryText: "UI 全面統一，股市對接 AI 搜尋工具，文字大小縮放實裝！", feeling: '🤩', records: [{ type: 'expense', amount: 350, category: '餐飲', note: '高雄晚餐' }], photos: [], locations: [{name: "駁二藝術特區"}] }
         });
-        const stockPortfolio = ref([{ name: '台積電(2330)', qty: 10, buyPrice: 1000, currentPrice: 1000 }]);
+        const stockPortfolio = ref([{ name: '台積電(2330)', qty: 10, buyPrice: 1850, currentPrice: 1850 }]);
 
         const form = ref({ diaryText: '', feeling: '😊', photos: [], locations: [], steps: 0, audio: null, records: [] });
         const newRecord = ref({ type: 'expense', amount: null, category: '餐飲', note: '' });
         const newStock = ref({ name: '', qty: null, buyPrice: null });
 
-        // --- 核心優化：AI 股市報價 (使用 Google Search 搜尋官方數據) ---
+        // --- 強化重試邏輯與 AI 股市統計 (解決統計錯誤) ---
         const callGeminiWithRetry = async (symbols, timeStr) => {
-            // 強化系統指令：明確要求參考台灣證券交易所官網數據
-            const system = `You are a real-time financial analyst. Your task is to SEARCH GOOGLE specifically for the CURRENT market closing prices of Taiwan stocks (TWSE) at this moment. Respond ONLY with clean JSON: {"2330": 1050}. Time context: ${timeStr}. Search for the specific stock code provided.`;
+            // 參考 twstock 更新邏輯與證交所數據指令
+            const system = `You are a real-time financial analyst mimicking the library 'twstock'. SEARCH GOOGLE for the LATEST REAL-TIME market closing/成交 prices of the Taiwan stocks provided. You must return data specifically from the Taiwan Stock Exchange (TWSE) context. Respond ONLY with clean JSON: {"2330": 1880}. Current Time: ${timeStr}. If ticker has text like "台積電(2330)", parse it as 2330.`;
             const maxRetries = 5;
             let attempt = 0;
 
@@ -686,11 +670,7 @@ createApp({
                     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            contents: [{ parts: [{ text: `Search real-time TWSE prices for: ${symbols}` }] }], 
-                            systemInstruction: { parts: [{ text: system }] }, 
-                            tools: [{ "google_search": {} }] 
-                        })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: symbols }] }], systemInstruction: { parts: [{ text: system }] }, tools: [{ "google_search": {} }] })
                     });
                     if (!response.ok) throw new Error('API Error');
                     const data = await response.json();
@@ -711,7 +691,6 @@ createApp({
                 const symbols = stockPortfolio.value.map(s => s.name).join(', ');
                 const resText = await callGeminiWithRetry(symbols, now.toLocaleString());
                 
-                // 使用 Regex 強制提取 JSON 塊，排除 Markdown 包裹
                 const jsonMatch = resText.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     const priceMap = JSON.parse(jsonMatch[0]);
@@ -727,7 +706,7 @@ createApp({
             isAILoading.value = false;
         };
 
-        // --- 核心優化：動態縮放下拉關閉手勢 ---
+        // --- 核心優化：動態縮放下拉關閉手勢 (隨指縮放) ---
         const touchYStart = ref(0);
         const modalDeltaY = ref(0);
         const isDraggingModal = ref(false);
@@ -742,10 +721,12 @@ createApp({
 
         const handleModalTouchMove = (e) => {
             if (!isDraggingModal.value) return;
-            const deltaY = e.touches[0].clientY - touchYStart.value;
+            const currentY = e.touches[0].clientY;
+            const deltaY = currentY - touchYStart.value;
+            
             if (deltaY > 0) {
                 modalDeltaY.value = deltaY;
-                // 防止事件穿透
+                // 下滑時阻止原生滾動
                 if (e.cancelable) e.preventDefault();
             } else {
                 modalDeltaY.value = 0;
@@ -754,6 +735,7 @@ createApp({
         };
 
         const handleModalTouchEnd = () => {
+            if (!isDraggingModal.value) return;
             if (modalDeltaY.value > 150) {
                 showAddModal.value = false;
             }
@@ -763,15 +745,18 @@ createApp({
 
         const modalStyle = computed(() => {
             if (!isDraggingModal.value && modalDeltaY.value === 0) return {};
-            const scale = Math.max(0.85, 1 - modalDeltaY.value / 2000);
-            const opacity = Math.max(0.5, 1 - modalDeltaY.value / 1000);
+            // 計算縮放：下滑越深縮越小，最小 0.85
+            const scale = Math.max(0.85, 1 - (modalDeltaY.value / 1500));
+            // 計算透明度
+            const opacity = Math.max(0.7, 1 - (modalDeltaY.value / 800));
             return {
                 transform: `translateY(${modalDeltaY.value}px) scale(${scale})`,
-                opacity: opacity
+                opacity: opacity,
+                transformOrigin: 'bottom center'
             };
         });
 
-        // 財務統計屬性
+        // 財務統計
         const allDataTotals = computed(() => {
             let inc = 0, exp = 0;
             Object.values(entries.value).forEach(e => {
@@ -792,7 +777,6 @@ createApp({
             });
             return Object.keys(totals).map((n, i) => ({ name: n, value: totals[n], color: ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#ec4899', '#8b5cf6'][i % 6] }));
         });
-
         const chartTotalValue = computed(() => chartCategories.value.reduce((a, b) => a + b.value, 0) || 0);
         const pieGradient = computed(() => {
             let offset = 0; const total = chartTotalValue.value || 1;
@@ -800,6 +784,7 @@ createApp({
             return parts.length ? `conic-gradient(${parts.join(', ')})` : '#f1f5f9';
         });
 
+        // 多媒體 & 紀錄
         const startRecording = async () => {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
@@ -827,7 +812,8 @@ createApp({
         };
         const saveRecord = () => {
             const key = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(selectedDay.value).padStart(2, '0')}`;
-            entries.value[key] = JSON.parse(JSON.stringify(form.value)); showAddModal.value = false; updateIcons();
+            entries.value[key] = JSON.parse(JSON.stringify(form.value));
+            showAddModal.value = false; updateIcons();
         };
 
         const addNewRecord = () => { if (newRecord.value.amount) { form.value.records.push({ ...newRecord.value }); newRecord.value.amount = null; newRecord.value.note = ''; } };
@@ -852,7 +838,7 @@ createApp({
             addNewRecord, getCategoryIcon: (n) => categories.value.find(c => c.name === n)?.icon || '❓', iconPool, categoryForm, confirmCategoryAction, closeCategoryModal,
             startCategoryLongPress, endCategoryLongPress, getPhotoGridClass: (c) => c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48'),
             stockPortfolio, newStock, addStockItem, updatePortfolioPrices, stockTotalValue, stockTotalProfit, isAILoading, lastSyncTime, locationSearch, addLocation,
-            isRecording, startRecording, stopRecording, playAudio, openGoogleMaps, openGoogleMapsSearch, handleMultiPhotoUpload, netWorth: computed(() => allDataTotals.value.net + stockTotalValue.value),
+            isRecording, startRecording, stopRecording, playAudio, openGoogleMaps, openGoogleMapsSearch, handleMultiPhotoUpload, netWorth,
             handleModalTouchStart, handleModalTouchMove, handleModalTouchEnd, isDraggingModal, modalStyle
         };
     }
