@@ -8,11 +8,25 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Firebase SDK 引入與全域宣告 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        window.FirebaseSDK = { 
+            initializeApp, getAuth, onAuthStateChanged, signInWithCustomToken, 
+            signInAnonymously, signOut, GoogleAuthProvider, signInWithPopup,
+            getFirestore, doc, setDoc, getDoc, onSnapshot, collection 
+        };
+    </script>
+
     <style>
         [v-cloak] { display: none; }
         :root { --p-color: #4f46e5; }
         
-        /* 基礎佈局與鎖定縮放選取 */
+        /* 基礎佈局 */
         .app-container { height: 100dvh; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -23,6 +37,7 @@
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
             background-color: #f1f5f9;
+            overscroll-behavior: none;
         }
 
         input, textarea, select {
@@ -35,7 +50,6 @@
         .border-p { border-color: var(--p-color) !important; }
         .ring-p { --tw-ring-color: var(--p-color) !important; }
 
-        /* 文字大小縮放系統 */
         .app-font-small { font-size: 12px; }
         .app-font-medium { font-size: 16px; }
         .app-font-large { font-size: 20px; }
@@ -43,16 +57,14 @@
         .card-shadow { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
         .safe-pb { padding-bottom: calc(8.5rem + env(safe-area-inset-bottom)); }
 
-        /* 甜甜圈圖 (Donut Chart) - 修正色彩顯示問題 */
+        /* 甜甜圈圖樣式 (Donut Chart) */
         .pie-chart-flat {
             width: 220px;
             height: 220px;
             border-radius: 50%;
             position: relative;
             margin: 20px auto;
-            /* 修正：由 var 直接接收完整的 gradient 字串 */
-            background: var(--gradient, #f1f5f9); 
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.5s ease;
         }
         .pie-hole {
             position: absolute;
@@ -69,7 +81,6 @@
             box-shadow: inset 0 2px 10px rgba(0,0,0,0.02);
         }
 
-        /* 照片縮圖 */
         .photo-thumb {
             width: 80px;
             height: 80px;
@@ -134,6 +145,12 @@
 <body class="antialiased overflow-hidden text-slate-900">
 
 <div id="app" v-cloak class="flex justify-center items-center app-container" :style="{'--p-color': settings.themeColor}">
+    <!-- 雲端同步中覆蓋層 -->
+    <div v-if="isGlobalLoading" class="absolute inset-0 z-[200] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center">
+        <div class="w-12 h-12 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+        <p class="text-[10px] font-black text-slate-400 tracking-widest uppercase">Cloud Syncing...</p>
+    </div>
+
     <div :class="['w-full sm:max-w-md h-full bg-slate-50 shadow-2xl relative flex flex-col overflow-hidden transition-all duration-300', 'app-font-' + settings.fontSize]">
         
         <!-- 通知列 -->
@@ -176,7 +193,6 @@
 
         <!-- 主要內容區 -->
         <main class="flex-1 overflow-y-auto hide-scrollbar bg-slate-50 safe-pb relative">
-            
             <!-- 年月選擇彈窗 -->
             <div v-if="showYearPicker || showMonthPicker" class="absolute inset-0 z-[60] flex items-center justify-center p-6">
                 <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showYearPicker = false; showMonthPicker = false"></div>
@@ -190,12 +206,12 @@
                     </div>
                     <div class="picker-grid max-h-60 overflow-y-auto hide-scrollbar">
                         <template v-if="showYearPicker">
-                            <button v-for="y in yearRange" :key="y" @click="currentYear = y; showYearPicker = false; showMonthPicker = true" 
+                            <button v-for="y in yearRange" :key="y" @click="changeYearTo(y)" 
                                 :class="currentYear === y ? 'bg-p text-white shadow-lg scale-105' : 'bg-slate-50 text-slate-600'"
                                 class="py-3 rounded-xl font-black transition-all">{{ y }}</button>
                         </template>
                         <template v-if="showMonthPicker">
-                            <button v-for="m in 12" :key="m" @click="currentMonth = m-1; showMonthPicker = false" 
+                            <button v-for="m in 12" :key="m" @click="changeMonthTo(m-1)" 
                                 :class="currentMonth === m-1 ? 'bg-p text-white shadow-lg scale-105' : 'bg-slate-50 text-slate-600'"
                                 class="py-3 rounded-xl font-black transition-all">{{ m }}{{ t('month') }}</button>
                         </template>
@@ -203,7 +219,7 @@
                 </div>
             </div>
 
-            <!-- 分頁：帳本 (紅收綠支) -->
+            <!-- 分頁：帳本 -->
             <section v-if="currentView === 'ledger'" class="animate-in fade-in duration-300">
                 <div class="p-4 bg-white border-b sticky top-0 z-10 shadow-sm">
                     <div class="calendar-grid text-center text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">
@@ -227,31 +243,57 @@
 
                 <div class="p-4 space-y-4">
                     <h3 class="text-[0.75em] font-black text-slate-400 uppercase tracking-wider px-1">{{ selectedDateString }}</h3>
-                    <div v-if="currentDayData" class="space-y-4">
+                    
+                    <div v-if="currentDayData" class="flex flex-col gap-4">
+                        <!-- 當日財務 -->
                         <div @click="openAddModal('finance')" class="bg-white p-5 rounded-[1.5rem] card-shadow border border-slate-100 cursor-pointer active:scale-[0.98] transition-all">
                             <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-2">
-                                <div class="flex items-center gap-2"><i data-lucide="circle-dollar-sign" class="w-4 h-4 text-p"></i><span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_finance') }}</span></div>
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="circle-dollar-sign" class="w-4 h-4 text-p"></i>
+                                    <span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_finance') }}</span>
+                                </div>
                                 <span class="text-[0.7em] font-bold text-slate-300">#{{ currentDayData?.records?.length || 0 }}</span>
                             </div>
-                            <div class="flex justify-between items-center">
+                            <div class="flex justify-between items-center px-1">
                                 <div class="flex flex-col gap-2">
                                     <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-black"><i data-lucide="arrow-down-left" class="w-3 h-3"></i></div><span class="text-[0.95em] font-black text-red-600 font-mono">+{{ formatNumber(dayTotalIncome) }}</span></div>
                                     <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-black"><i data-lucide="arrow-up-right" class="w-3 h-3"></i></div><span class="text-[0.95em] font-black text-green-600 font-mono">-{{ formatNumber(dayTotalExpense) }}</span></div>
                                 </div>
-                                <div class="text-right"><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">{{ t('daily_net') }}</p><div :class="dayNetBalance >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[1.8em] font-black font-mono tracking-tighter leading-none">{{ dayNetBalance >= 0 ? '+' : '' }}{{ formatNumber(dayNetBalance) }}</div></div>
+                                <div class="text-right">
+                                    <p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">{{ t('daily_net') }}</p>
+                                    <div :class="dayNetBalance >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[1.8em] font-black font-mono tracking-tighter leading-none">
+                                        {{ dayNetBalance >= 0 ? '+' : '' }}{{ formatNumber(dayNetBalance) }}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div @click="openAddModal('diary')" class="bg-white p-5 rounded-[1.5rem] card-shadow border border-slate-100 space-y-3 cursor-pointer active:scale-[0.98] transition-all">
-                            <div class="flex items-center justify-between border-b border-slate-50 pb-2"><div class="flex items-center gap-2"><i data-lucide="pen-tool" class="w-4 h-4 text-orange-400"></i><span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_diary') }}</span></div><div class="text-[1.2em]">{{ currentDayData?.feeling || '😊' }}</div></div>
-                            <div v-if="currentDayData?.photos?.length" class="grid gap-1 overflow-hidden rounded-xl" :class="getPhotoGridClass(currentDayData.photos.length)"><img v-for="(img, idx) in currentDayData.photos.slice(0, 3)" :key="idx" :src="img" class="w-full h-full object-cover min-h-[80px]"></div>
-                            <p class="text-[0.9em] text-slate-600 leading-relaxed truncate">{{ currentDayData?.diaryText || t('no_diary_text') }}</p>
+                        <!-- 心情日誌 -->
+                        <div @click="openAddModal('diary')" class="bg-white p-5 rounded-[1.5rem] card-shadow border border-slate-100 cursor-pointer active:scale-[0.98] transition-all">
+                            <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-2">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="pen-tool" class="w-4 h-4 text-orange-400"></i>
+                                    <span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_diary') }}</span>
+                                </div>
+                                <div class="text-[1.2em] leading-none">{{ currentDayData?.feeling || '😊' }}</div>
+                            </div>
+                            <div class="px-1 space-y-3">
+                                <div v-if="currentDayData?.photos?.length" class="grid gap-1 overflow-hidden rounded-xl" :class="getPhotoGridClass(currentDayData.photos.length)">
+                                    <img v-for="(img, idx) in currentDayData.photos.slice(0, 3)" :key="idx" :src="img" class="w-full h-full object-cover min-h-[80px]">
+                                </div>
+                                <p class="text-[0.9em] text-slate-600 leading-relaxed truncate">{{ currentDayData?.diaryText || t('no_diary_text') }}</p>
+                                <div v-if="currentDayData?.locations?.length" class="flex gap-1 overflow-x-auto hide-scrollbar pt-1">
+                                    <div v-for="loc in currentDayData.locations" :key="loc.name" class="flex items-center whitespace-nowrap bg-slate-100 px-2 py-1 rounded text-[0.6em] font-bold text-slate-500">
+                                        <i data-lucide="map-pin" class="w-2.5 h-2.5 mr-1"></i>{{ loc.name }}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- 分頁：股市投資 (紅漲綠跌) -->
+            <!-- 分頁：股市投資 -->
             <section v-if="currentView === 'stocks'" class="p-6 space-y-6 animate-in fade-in">
                 <div class="bg-slate-900 text-white p-7 rounded-[2.5rem] shadow-xl relative overflow-hidden">
                     <div class="absolute -right-5 -top-5 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl"></div>
@@ -294,7 +336,7 @@
                 </div>
             </section>
 
-            <!-- 分頁：分析統計 (甜甜圈圖) -->
+            <!-- 分析統計頁面 -->
             <section v-if="currentView === 'charts'" class="p-6 space-y-8 animate-in fade-in text-center text-slate-700">
                 <div class="bg-white p-4 rounded-[2rem] card-shadow border border-slate-50 flex items-center justify-between transition-all overflow-hidden gap-1">
                     <div class="flex-1 min-w-0"><p class="text-[0.5em] font-black text-red-600 uppercase mb-0.5 truncate">{{ t('income_short') }}</p><p class="text-[0.75em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.income) }}</p></div>
@@ -315,15 +357,13 @@
                         </div>
                     </div>
                     
-                    <!-- 甜甜圈圖主體 -->
-                    <div class="pie-chart-flat" :style="{ '--gradient': pieGradient }">
+                    <div class="pie-chart-flat" :style="{ background: pieGradient }">
                         <div class="pie-hole">
                             <p class="text-[0.5em] text-slate-400 font-black uppercase tracking-widest mb-1">{{ chartMode === 'expense' ? t('expense') : t('income') }}</p>
                             <p class="text-[1.25rem] font-black leading-tight" :class="chartMode === 'expense' ? 'text-green-600' : 'text-red-500'">${{ formatNumber(chartTotalValue) }}</p>
                         </div>
                     </div>
 
-                    <!-- 類別明細列 -->
                     <div class="w-full mt-10 space-y-2">
                         <template v-for="(cat, cidx) in chartCategories" :key="cat.name">
                              <div @click="jumpToCategoryDetails(cat.name)" class="group flex items-center p-3 rounded-[1.25rem] bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all cursor-pointer">
@@ -350,7 +390,39 @@
             </section>
             
             <!-- 設定分頁 -->
-            <section v-if="currentView === 'settings'" class="p-6">
+            <section v-if="currentView === 'settings'" class="p-6 space-y-6">
+                <!-- 帳號與同步區塊 -->
+                <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-6 border border-slate-100">
+                    <div class="flex items-center gap-4 mb-2">
+                        <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-indigo-600 shadow-inner overflow-hidden">
+                            <img v-if="user?.photoURL" :src="user.photoURL" class="w-full h-full object-cover">
+                            <i v-else data-lucide="user" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest">{{ t('account_sync') }}</h3>
+                            <p class="text-[10px] font-bold text-slate-400">{{ user ? user.email : t('not_logged_in') }}</p>
+                        </div>
+                    </div>
+                    
+                    <div v-if="user" class="space-y-4">
+                        <div class="flex justify-between items-center bg-green-50 p-4 rounded-2xl border border-green-100">
+                            <span class="text-[10px] font-black text-green-700 tracking-widest uppercase">Cloud Status</span>
+                            <div class="flex items-center gap-1.5 text-green-600 font-black text-[10px]">
+                                <i data-lucide="check-circle" class="w-3 h-3"></i> Synchronized
+                            </div>
+                        </div>
+                        <button @click="handleLogout" class="w-full py-4 bg-slate-50 text-red-500 rounded-2xl font-black text-xs hover:bg-red-50 transition-all">
+                            {{ t('logout_btn') }}
+                        </button>
+                    </div>
+                    <div v-else class="space-y-4">
+                        <p class="text-xs font-bold text-slate-500 leading-relaxed px-1">{{ t('sync_hint') }}</p>
+                        <button @click="showLoginModal = true" class="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xs shadow-xl shadow-indigo-100 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
+                            {{ t('login_start_btn') }}
+                        </button>
+                    </div>
+                </div>
+
                 <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-8 transition-all">
                     <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700">{{ t('lang_label') }}</span>
                         <select v-model="settings.lang" class="bg-slate-50 rounded-xl px-4 py-3 font-black text-[0.7em] outline-none border-none ring-1 ring-slate-100"><option value="zh">繁體中文</option><option value="en">English</option></select>
@@ -366,7 +438,30 @@
             </section>
         </main>
 
-        <!-- 新增/編輯視窗 -->
+        <!-- 登入選單彈窗 -->
+        <transition name="fade">
+            <div v-if="showLoginModal" class="fixed inset-0 z-[210] flex items-center justify-center p-6">
+                <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md" @click="showLoginModal = false"></div>
+                <div class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in duration-200 text-center">
+                    <h2 class="text-xl font-black text-slate-800 mb-2">登入 LifeTrack</h2>
+                    <p class="text-xs font-bold text-slate-400 mb-8 leading-relaxed">選擇您的登入方式以開始同步</p>
+                    <div class="space-y-3">
+                        <button @click="handleGoogleLogin" class="w-full py-4 bg-white border-2 border-slate-100 text-slate-700 rounded-2xl font-black text-xs shadow-sm hover:bg-slate-50 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                            </svg>
+                            使用 Google 帳號連結
+                        </button>
+                    </div>
+                    <button @click="showLoginModal = false" class="mt-8 text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-slate-400 transition-colors">稍後再說</button>
+                </div>
+            </div>
+        </transition>
+
+        <!-- 編輯/新增視窗 (保持不變) -->
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
                 <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
@@ -375,13 +470,10 @@
                     <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div>
                     <div class="flex justify-between items-center mb-6 px-1"><h2 class="text-[1.3em] font-black text-slate-800">{{ currentMonth+1 }}/{{ selectedDay }} {{ t('new_record') }}</h2><button @click="saveRecord" :style="{ backgroundColor: settings.themeColor }" class="text-white px-10 py-3 rounded-full font-black shadow-xl active:scale-95 transition-all text-[0.8em] mr-8">{{ t('save') }}</button></div>
                     <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8"><button @click="editTab = 'diary'" :class="editTab === 'diary' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'diary' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_diary') }}</button><button @click="editTab = 'finance'" :class="editTab === 'finance' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'finance' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_finance') }}</button></div>
-
-                    <!-- 財務輸入 -->
                     <div v-if="editTab === 'finance'" class="space-y-8 pb-24">
                         <div class="space-y-4">
                             <div v-for="(rec, ridx) in form.records" :key="ridx" class="flex items-center justify-between bg-white p-4 rounded-[1.5rem] card-shadow border border-slate-50 overflow-hidden"><div class="flex items-center min-w-0 flex-1"><div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mr-3 text-[1.25em] shadow-inner">{{ getCategoryIcon(rec?.category) }}</div><div class="min-w-0 flex-1"><p class="text-sm font-black text-slate-800">{{ rec?.category }}</p><p v-if="rec?.note" class="text-[10px] text-slate-400 font-bold truncate pr-4">{{ rec?.note }}</p></div></div><div class="flex items-center gap-3"><span :class="rec?.type === 'income' ? 'text-red-600' : 'text-green-600'" class="font-mono font-black">{{ rec?.type === 'income' ? '+' : '-' }}{{ formatNumber(rec?.amount) }}</span><button @click="form.records.splice(ridx, 1)" class="text-slate-200 hover:text-red-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>
                         </div>
-
                         <div class="p-6 bg-slate-50/80 rounded-[2.5rem] border border-slate-200 space-y-6">
                             <div class="flex justify-between items-center px-1"><span class="text-[10px] font-black text-slate-400 tracking-widest uppercase">{{ t('add_new_line') }}</span><div class="flex bg-white p-1 rounded-full shadow-sm text-[9px] font-black border border-slate-100 overflow-hidden"><button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-green-600 text-white shadow-md' : 'text-slate-400'" class="px-6 py-2.5 transition-all">{{ t('expense_short') }}</button><button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-red-500 text-white shadow-md' : 'text-red-500'" class="px-6 py-2.5 transition-all">{{ t('income_short') }}</button></div></div>
                             <div class="grid grid-cols-4 gap-3">
@@ -392,8 +484,6 @@
                             <button @click="addNewRecord" :style="{ backgroundColor: settings.themeColor }" class="w-full text-white py-5 rounded-2xl font-black text-[0.85em] shadow-xl active:scale-[0.98] transition-all">{{ t('add_to_list') }}</button>
                         </div>
                     </div>
-
-                    <!-- 心情日誌 -->
                     <div v-if="editTab === 'diary'" class="space-y-8 pb-24 px-1 overflow-x-hidden">
                         <div class="flex items-center justify-between bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100"><div class="flex items-center"><div class="w-12 h-12 rounded-2xl bg-white shadow-md flex items-center justify-center mr-4" :class="{'recording-pulse': isRecording}"><i data-lucide="mic" class="w-6 h-6" :class="isRecording ? 'text-red-500' : 'text-p'"></i></div><div class="flex flex-col"><span class="text-xs font-black">{{ isRecording ? t('recording') : (form.audio ? t('recorded') : t('voice_memo')) }}</span><span class="text-[0.6em] text-slate-400 font-bold uppercase tracking-widest">Voice Note</span></div></div><div class="flex gap-2"><button v-if="!isRecording" @click="startRecording" class="p-3 bg-p text-white rounded-xl shadow-lg active:scale-90 transition-all"><i data-lucide="play" class="w-4 h-4 fill-current text-white"></i></button><button v-else @click="stopRecording" class="p-3 bg-red-500 text-white rounded-xl shadow-lg animate-pulse"><i data-lucide="square" class="w-4 h-4 fill-current text-white"></i></button><button v-if="form.audio && !isRecording" @click="playAudio(form.audio)" class="p-3 bg-indigo-100 text-p rounded-xl active:scale-90"><i data-lucide="volume-2" class="w-4 h-4"></i></button></div></div>
                         <div class="space-y-4"><label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest px-1">{{ t('journal_feeling') }}</label><div class="flex gap-2.5 px-1 overflow-x-auto hide-scrollbar"><button v-for="f in ['😊','😔','😡','🤩','😴','💪','🍷','🏢','✈️']" :key="f" @click="form.feeling = f" :class="form.feeling === f ? 'scale-125 ring-2 ring-orange-200 bg-white' : 'opacity-40'" class="text-[1.5em] p-2 rounded-xl transition-all">{{ f }}</button></div></div>
@@ -405,29 +495,8 @@
             </div>
         </transition>
 
-        <!-- 類別明細跳窗 (紅收綠支) -->
-        <transition name="fade">
-            <div v-if="showCategoryDetailModal" class="fixed inset-0 z-[120] flex items-end justify-center">
-                <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showCategoryDetailModal = false"></div>
-                <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[85vh] shadow-2xl modal-scrollable overflow-x-hidden" :class="{ 'modal-transition': !isDraggingModal }" :style="modalStyle" @touchstart="handleModalTouchStart" @touchmove="handleModalTouchMove" @touchend="handleModalTouchEnd">
-                    <button @click="showCategoryDetailModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-600 transition-colors z-[110]"><i data-lucide="x" class="w-6 h-6"></i></button>
-                    <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div>
-                    <div class="flex items-center gap-3 mb-6 px-2"><div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[1.5em]">{{ selectedCategoryForDetail?.icon || '?' }}</div><h2 class="text-[1.5em] font-black text-slate-800">{{ selectedCategoryForDetail?.name }} {{ t('new_record') }}</h2></div>
-                    <div class="space-y-4 pb-12">
-                        <div v-for="(item, idx) in categoryDetailRecords" :key="idx" @click="jumpToEdit(item.date, item.originalIndex)" class="flex justify-between items-center bg-slate-50 p-4 rounded-[1.5rem] cursor-pointer hover:bg-slate-100 transition-all animate-in slide-in-from-bottom">
-                            <div class="flex flex-col"><span class="text-[0.7em] font-bold text-slate-400 uppercase tracking-widest">{{ item.date }}</span><span class="text-[0.9em] font-black text-slate-700 truncate w-48">{{ item.record.note || '---' }}</span></div>
-                            <div class="flex items-center gap-4">
-                                <span class="font-mono font-black text-[1.1em]" :class="item.record.type==='income'?'text-red-500':'text-green-600'">{{ item.record.type==='income'?'+':'-' }}{{ formatNumber(item.record.amount) }}</span>
-                                <button @click.stop="deleteSpecificRecord(item.date, item.originalIndex)" class="text-slate-300 hover:text-red-500 transition-colors p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                            </div>
-                        </div>
-                        <div v-if="categoryDetailRecords.length === 0" class="text-center py-12 text-slate-300 font-bold">目前無此類別資料</div>
-                    </div>
-                </div>
-            </div>
-        </transition>
-
-        <!-- 其他彈窗 (分類、股票編輯)... -->
+        <!-- 明細跳窗 (修正：已補回互動函式) -->
+        <transition name="fade"><div v-if="showCategoryDetailModal" class="fixed inset-0 z-[120] flex items-end justify-center"><div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showCategoryDetailModal = false"></div><div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[85vh] shadow-2xl modal-scrollable overflow-x-hidden" :class="{ 'modal-transition': !isDraggingModal }" :style="modalStyle" @touchstart="handleModalTouchStart" @touchmove="handleModalTouchMove" @touchend="handleModalTouchEnd"><button @click="showCategoryDetailModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-600 transition-colors z-[110]"><i data-lucide="x" class="w-6 h-6"></i></button><div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div><div class="flex items-center gap-3 mb-6 px-2"><div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[1.5em]">{{ selectedCategoryForDetail?.icon || '?' }}</div><h2 class="text-[1.5em] font-black text-slate-800">{{ selectedCategoryForDetail?.name }} {{ t('new_record') }}</h2></div><div class="space-y-4 pb-12"><div v-for="(item, idx) in categoryDetailRecords" :key="idx" @click="jumpToEdit(item.date, item.originalIndex)" class="flex justify-between items-center bg-slate-50 p-4 rounded-[1.5rem] cursor-pointer hover:bg-slate-100 transition-all"><div class="flex flex-col"><span class="text-[0.7em] font-bold text-slate-400 uppercase tracking-widest">{{ item.date }}</span><span class="text-[0.9em] font-black text-slate-700 truncate w-48">{{ item.record.note || '---' }}</span></div><div class="flex items-center gap-4"><span class="font-mono font-black text-[1.1em]" :class="item.record.type==='income'?'text-red-500':'text-green-600'">{{ item.record.type==='income'?'+':'-' }}{{ formatNumber(item.record.amount) }}</span><button @click.stop="deleteSpecificRecord(item.date, item.originalIndex)" class="text-slate-300 hover:text-red-500 transition-colors p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div><div v-if="categoryDetailRecords.length === 0" class="text-center py-12 text-slate-300 font-bold">目前無此類別資料</div></div></div></div></transition>
         <transition name="fade"><div v-if="showEditStockModal" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showEditStockModal = false"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-xl font-black mb-6 text-slate-800">編輯投資項目</h3><div class="space-y-4"><div class="p-4 bg-slate-50 rounded-2xl"><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">股票名稱</p><p class="font-black text-p">{{ editingStock?.name || '---' }}</p></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">股數</p><input v-model.number="editingStock.qty" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">成本</p><input v-model.number="editingStock.buyPrice" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div></div><div class="flex gap-4 pt-4"><button @click="showEditStockModal = false" class="flex-1 py-4 rounded-2xl font-black text-slate-400">{{ t('cancel') }}</button><button @click="confirmEditStock" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95">更新</button></div></div></div></div></transition>
         <transition name="fade"><div v-if="showAddCategory || showEditCategory" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeCategoryModal"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-[1.25em] font-black mb-8 text-slate-800">{{ showEditCategory ? t('edit_cat_title') : t('custom_cat_title') }}</h3><div class="space-y-8"><div class="grid grid-cols-5 gap-3 max-h-48 overflow-y-auto p-1 hide-scrollbar"><button v-for="ico in iconPool" :key="ico" @click="categoryForm.icon = ico" :class="categoryForm.icon === ico ? 'bg-indigo-100 ring-4 ring-indigo-200' : 'bg-slate-50'" class="text-[1.5em] p-3 rounded-2xl transition-all flex items-center justify-center">{{ ico }}</button></div><input v-model="categoryForm.name" type="text" class="w-full bg-slate-50 p-5 rounded-3xl outline-none font-bold border-none shadow-inner text-[0.9em]" :placeholder="t('cat_name_ph')"><div class="flex gap-4 pt-4"><button @click="closeCategoryModal" class="flex-1 py-5 rounded-2xl font-black text-slate-400 text-[0.8em]">{{ t('cancel') }}</button><button @click="confirmCategoryAction" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 text-[0.8em]">{{ t('confirm') }}</button></div></div></div></div></transition>
 
@@ -438,23 +507,34 @@
     </div>
 </div>
 
-<script>
+<script type="module">
 const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 
 createApp({
     setup() {
+        const appVersion = "v1.2.4";
+        const fb = window.FirebaseSDK;
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = fb.initializeApp(firebaseConfig);
+        const auth = fb.getAuth(app);
+        const db = fb.getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'lifetrack-pro';
         const apiKey = ""; 
-        const version = "v1.0.0.7";
-        
+
         // 核心狀態
         const currentYear = ref(new Date().getFullYear());
         const currentMonth = ref(new Date().getMonth());
         const selectedDay = ref(new Date().getDate());
         const currentView = ref('ledger');
         const settings = ref({ lang: 'zh', themeColor: '#4f46e5', fontSize: 'medium' });
+        const user = ref(null);
+        const isGlobalLoading = ref(true);
+        const lastSyncTime = ref('');
+        const errorMsg = ref('');
 
         const showAddModal = ref(false);
         const showCategoryDetailModal = ref(false);
+        const showLoginModal = ref(false);
         const showYearPicker = ref(false);
         const showMonthPicker = ref(false);
         const showAddCategory = ref(false);
@@ -466,15 +546,17 @@ createApp({
         const editTab = ref('diary');
         const isRecording = ref(false);
         const locationSearch = ref('');
-        const lastSyncTime = ref('');
-        const errorMsg = ref('');
         const stockSuggestions = ref([]);
+        const isDraggingModal = ref(false);
         const touchYStart = ref(0);
         const modalDeltaY = ref(0);
-        const isDraggingModal = ref(false);
+
         const editingStock = ref({ name: '', qty: 0, buyPrice: 0 });
         const selectedCategoryForDetail = ref(null);
+        const categoryForm = ref({ name: '', icon: '🍲' });
+        const iconPool = ['🍲', '☕', '🍺', '🍰', '🚗', '🚲', '⛽', '✈️', '🛍️', '👕', '📱', '🎮', '🎬', '📚', '💊', '🩺', '🏠', ' Couch', '🐈', '🐶', '🌿', '💰', '🏦', '💼', '🎁', '🍷', '🚬', '⛪', '🚕', '🎠', '🎨', '🎻', '🏸', '🛀', '🍣', '🍼', '👶', '🐾', '💈', '💇', '💄'];
         
+        let targetCategory = null;
         let editingStockIdx = -1;
         let mediaRecorder = null;
         let audioChunks = [];
@@ -488,16 +570,8 @@ createApp({
             { name: '薪資', icon: '💰', type: 'income' }, { name: '紅利', icon: '🧧', type: 'income' },
             { name: '其它', icon: '📦', type: 'expense' }
         ]);
-
-        const iconPool = ['🍲', '☕', '🍺', '🍰', '🚗', '🚲', '⛽', '✈️', '🛍️', '👕', '📱', '🎮', '🎬', '📚', '💊', '🩺', '🏠', '🛋️', '🐈', '🐶', '🌿', '💰', '🏦', '💼', '🎁', '🍷', '🚬', '⛪', '🚕', '🎠', '🎨', '🎻', '🏸', '🛀', '🍣', '🍼', '👶', '🐾', '💈', '💇', '💄'];
-        const categoryForm = ref({ name: '', icon: '🍲' });
-        let targetCategory = null;
-
-        // 預設資料
-        const entries = ref({
-            "2026-02-10": { diaryText: "UI 修復完成，ReferenceError 已排除，股市對接 TWSE。", feeling: '🤩', records: [{ type: 'expense', amount: 350, category: '餐飲', note: '高雄晚餐' }], photos: [], locations: [{name: "駁二"}] }
-        });
-        const stockPortfolio = ref([{ name: '台積電(2330)', qty: 10, buyPrice: 1000, currentPrice: 1050 }]);
+        const entries = ref({});
+        const stockPortfolio = ref([]);
         const form = ref({ records: [], diaryText: '', feeling: '😊', photos: [], locations: [], audio: null });
         const newRecord = ref({ type: 'expense', amount: null, category: '餐飲', note: '' });
         const newStock = ref({ name: '', qty: null, buyPrice: null });
@@ -517,7 +591,8 @@ createApp({
                 voice_memo: '語音備忘', recorded: '錄音已存', recording: '錄音中', amount_ph: '金額', note_ph: '備註', add_to_list: '加入',
                 stat_btn: '智慧統計', no_diary_text: '尚未填寫今日日誌...', market_value: '市值', total_profit: '損益',
                 photo: '相片', location_map: '地點', search_on_map: '地圖', location_ph: '輸入地點...', add_new_line: '新增收支明細', journal_feeling: '感受',
-                edit_cat_title: '編輯類別', custom_cat_title: '自定義類別', cat_name_ph: '名稱', total: '合計', avg_day: '平均每天'
+                edit_cat_title: '編輯類別', custom_cat_title: '自定義類別', cat_name_ph: '名稱',
+                account_sync: '帳號與同步', login_start_btn: '連結帳號', logout_btn: '登出帳號', not_logged_in: '尚未連結帳號', sync_hint: '連結 Google 帳號後，您的所有紀錄將自動備份至雲端。'
             },
             en: { 
                 ledger: 'Ledger', stocks: 'Stocks', charts: 'Analysis', settings: 'Settings', add: 'New',
@@ -528,12 +603,205 @@ createApp({
                 stock_name_ph: 'Name/ID', stock_qty_ph: 'Qty', stock_buy_ph: 'Cost', add_stock_btn: 'Add',
                 shares_unit: 'shs', unrealized_pl: 'U-PL', unrealized_pl_short: 'U-PL', expense_structure: 'Expenses', income_structure: 'Income',
                 lang_label: 'Language', theme_label: 'Theme', font_label: 'Font', new_record: 'Details', save: 'Save',
-                photo: 'Photos', location_map: 'Locations', add_new_line: 'Add Record', journal_feeling: 'Feelings'
+                photo: 'Photos', location_map: 'Locations', add_new_line: 'Add Record', journal_feeling: 'Feelings',
+                total: 'Total', avg_day: 'Avg/Day', category: 'Category', ratio: 'Ratio',
+                font_small: 'Small', font_medium: 'Medium', font_large: 'Large', journal_placeholder: 'What happened today...',
+                voice_memo: 'Voice Memo', recorded: 'Recorded', recording: 'Recording', amount_ph: 'Amount', note_ph: 'Note',
+                add_to_list: 'Add', stat_btn: 'Smart Stats', no_diary_text: 'No entry yet...', market_value: 'Market Value', total_profit: 'Total Profit',
+                search_on_map: 'Map', location_ph: 'Location...', edit_cat_title: 'Edit Category', custom_cat_title: 'Custom Category', cat_name_ph: 'Name',
+                account_sync: 'Account & Sync', login_start_btn: 'Link Account', logout_btn: 'Log Out', not_logged_in: 'Not Linked', sync_hint: 'Link Google account to backup data.'
             }
         };
-        const t = (key) => dictionary[settings.value.lang][key] || key;
 
-        // 計算屬性
+        const t = (key) => {
+            const lang = settings.value.lang || 'zh';
+            return dictionary[lang]?.[key] || dictionary['zh'][key] || key;
+        };
+
+        // --- 具名功能函式 ---
+        function updateIcons() { nextTick(() => { if(window.lucide) lucide.createIcons(); }); }
+        function formatNumber(num) { return Math.floor(num || 0).toLocaleString(); }
+        function showError(msg) { errorMsg.value = msg; setTimeout(() => { errorMsg.value = ''; }, 4000); }
+        function getCategoryIcon(n) { return categories.value.find(c => c.name === n)?.icon || '❓'; }
+        function getPhotoGridClass(c) { return c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48'); }
+
+        function changeYear(delta) { currentYear.value += delta; }
+        function changeMonth(delta) { 
+            let nm = currentMonth.value + delta;
+            if (nm > 11) { nm = 0; currentYear.value++; } else if (nm < 0) { nm = 11; currentYear.value--; }
+            currentMonth.value = nm;
+        }
+        function changeYearTo(y) { currentYear.value = y; showYearPicker.value = false; showMonthPicker.value = true; }
+        function changeMonthTo(m) { currentMonth.value = m; showMonthPicker.value = false; }
+
+        async function syncToCloud() {
+            if (!user.value) return;
+            try {
+                const stateDoc = fb.doc(db, 'artifacts', appId, 'users', user.value.uid, 'appData', 'globalState');
+                await fb.setDoc(stateDoc, { entries: JSON.stringify(entries.value), stockPortfolio: stockPortfolio.value, categories: categories.value, settings: settings.value, lastSync: Date.now() });
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadFromCloud() {
+            if (!user.value) return;
+            isGlobalLoading.value = true;
+            try {
+                const stateDoc = fb.doc(db, 'artifacts', appId, 'users', user.value.uid, 'appData', 'globalState');
+                const snap = await fb.getDoc(stateDoc);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (data.entries) entries.value = JSON.parse(data.entries);
+                    if (data.stockPortfolio) stockPortfolio.value = data.stockPortfolio;
+                    if (data.categories) categories.value = data.categories;
+                    if (data.settings) settings.value = data.settings;
+                }
+            } catch (e) { showError("讀取雲端失敗"); }
+            isGlobalLoading.value = false;
+        }
+
+        async function handleGoogleLogin() {
+            showLoginModal.value = false;
+            setTimeout(async () => {
+                isGlobalLoading.value = true;
+                try {
+                    const provider = new fb.GoogleAuthProvider();
+                    provider.setCustomParameters({ prompt: 'select_account' });
+                    await fb.signInWithPopup(auth, provider);
+                } catch (e) {
+                    if (e.code === 'auth/popup-blocked') showError("登入視窗被攔截");
+                    else if (e.code !== 'auth/popup-closed-by-user') showError("連結失敗");
+                } finally { isGlobalLoading.value = false; }
+            }, 100);
+        }
+
+        async function handleLogout() {
+            await fb.signOut(auth);
+            user.value = null; entries.value = {}; stockPortfolio.value = [];
+        }
+
+        // --- 修正與補回的核心函式 ---
+        function getRecordsByCategory(catName) {
+            const results = [];
+            Object.keys(entries.value).forEach(dateKey => {
+                const dailyRecs = entries.value[dateKey].records || [];
+                dailyRecs.forEach((r, idx) => {
+                    if (r.category === catName && r.type === chartMode.value) results.push({ date: dateKey, record: r, originalIndex: idx });
+                });
+            });
+            return results.sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
+
+        function jumpToCategoryDetails(catName) {
+            const cat = categories.value.find(c => c.name === catName);
+            if (cat) selectedCategoryForDetail.value = cat;
+            showCategoryDetailModal.value = true; updateIcons();
+        }
+
+        function jumpToEdit(dateStr, index) {
+            const [y, m, d] = dateStr.split('-').map(Number);
+            currentYear.value = y; currentMonth.value = m - 1; selectedDay.value = d;
+            showCategoryDetailModal.value = false; openAddModal('finance');
+        }
+
+        async function deleteSpecificRecord(dateStr, index) {
+            if (entries.value[dateStr]) {
+                entries.value[dateStr].records.splice(index, 1);
+                updateIcons(); await syncToCloud();
+            }
+        }
+
+        async function updatePortfolioPrices() {
+            if (!stockPortfolio.value.length) return;
+            isAILoading.value = true;
+            try {
+                const syms = stockPortfolio.value.map(s => s.name).join(', ');
+                const sys = `你是一位專業的台股助理。搜尋 Google 並參考 Yahoo 股市台灣 或 TWSE/TPEx 官方資訊。
+                目標：取得這幾檔股票的最新『成交價』(Trade Price)：${syms}。
+                格式要求：僅回傳 JSON 例如 {"2330": 1050, "6547": 155}。注意區分上市與上櫃股碼。`;
+
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `取得台股即時成交價：${syms}` }] }], systemInstruction: { parts: [{ text: sys }] }, tools: [{ "google_search": {} }] })
+                });
+                const d = await res.json();
+                const text = d.candidates?.[0]?.content?.parts?.[0]?.text;
+                const match = text?.match(/\{[\s\S]*\}/);
+                if (match) {
+                    const priceMap = JSON.parse(match[0]);
+                    stockPortfolio.value.forEach(stk => {
+                        const id = stk.name.match(/\d{4,}/)?.[0] || stk.name;
+                        const matchKey = Object.keys(priceMap).find(k => k.includes(id) || id.includes(k));
+                        if (matchKey) stk.currentPrice = Number(priceMap[matchKey]);
+                    });
+                    lastSyncTime.value = new Date().toLocaleTimeString(); await syncToCloud();
+                } else { showError("行情暫時無法更新"); }
+            } catch (e) { showError("行情獲取失敗"); }
+            isAILoading.value = false;
+        }
+
+        function addNewRecord() { if (newRecord.value.amount) { form.value.records.unshift({ ...newRecord.value }); newRecord.value.amount = null; newRecord.value.note = ''; } }
+        async function saveRecord() {
+            entries.value[currentDayKey.value] = JSON.parse(JSON.stringify(form.value));
+            showAddModal.value = false; updateIcons(); await syncToCloud();
+        }
+        function openAddModal(tab = 'diary') {
+            editTab.value = tab;
+            form.value = entries.value[currentDayKey.value] ? JSON.parse(JSON.stringify(entries.value[currentDayKey.value])) : { records: [], diaryText: '', feeling: '😊', photos: [], locations: [], audio: null };
+            showAddModal.value = true; updateIcons();
+        }
+
+        function debouncedSearch() {
+            clearTimeout(searchTimeout);
+            if (!newStock.value.name) { stockSuggestions.value = []; return; }
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const sys = `Lookup TWSE codes. Return JSON: [{"name": "台積電", "id": "2330"}]. Key: ${newStock.value.name}`;
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `Search ${newStock.value.name}` }] }], systemInstruction: { parts: [{ text: sys }] }, tools: [{ "google_search": {} }] })
+                    });
+                    const d = await res.json();
+                    const match = d.candidates?.[0]?.content?.parts?.[0]?.text?.match(/\[[\s\S]*\]/);
+                    if (match) stockSuggestions.value = JSON.parse(match[0]);
+                } catch (e) {}
+            }, 800);
+        }
+
+        function selectStockSuggestion(sug) { newStock.value.name = `${sug.name}(${sug.id})`; stockSuggestions.value = []; }
+        function startStockLongPress(stk, idx) { longPressTimer = setTimeout(() => { editingStock.value = { ...stk }; editingStockIdx = idx; showEditStockModal.value = true; }, 800); }
+        function endStockLongPress() { clearTimeout(longPressTimer); }
+        async function confirmEditStock() { if (editingStockIdx !== -1) stockPortfolio.value[editingStockIdx] = { ...editingStock.value }; showEditStockModal.value = false; await syncToCloud(); }
+        function startCategoryLongPress(cat) { longPressTimer = setTimeout(() => { targetCategory = cat; categoryForm.value = { ...cat }; showEditCategory.value = true; }, 800); }
+        function endCategoryLongPress() { clearTimeout(longPressTimer); }
+        function closeCategoryModal() { showAddCategory.value = false; showEditCategory.value = false; categoryForm.value = { name: '', icon: '🍲' }; }
+        async function confirmCategoryAction() { 
+            if (!categoryForm.value.name.trim()) return; 
+            if (showEditCategory.value && targetCategory) { targetCategory.name = categoryForm.value.name.trim(); targetCategory.icon = categoryForm.value.icon; } 
+            else { categories.value.push({ name: categoryForm.value.name.trim(), icon: categoryForm.value.icon, type: newRecord.value.type }); } 
+            closeCategoryModal(); await syncToCloud();
+        }
+
+        function handleMultiPhotoUpload(e) { Array.from(e.target.files).slice(0, 10).forEach(file => { const reader = new FileReader(); reader.onload = (f) => form.value.photos.push(f.target.result); reader.readAsDataURL(file); }); }
+        function addLocation() { if (locationSearch.value.trim()) { form.value.locations.push({ name: locationSearch.value.trim() }); locationSearch.value = ''; updateIcons(); } }
+        function openGoogleMapsSearch() { window.open(`https://www.google.com/maps`, '_blank'); }
+        function openGoogleMaps(n) { window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(n)}`, '_blank'); }
+        async function startRecording() { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); mediaRecorder = new MediaRecorder(s); mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data); mediaRecorder.onstop = () => { const b = new Blob(audioChunks, { type: 'audio/webm' }); const r = new FileReader(); r.onload = (x) => form.value.audio = x.target.result; r.readAsDataURL(b); audioChunks = []; }; mediaRecorder.start(); isRecording.value = true; }
+        function stopRecording() { if (mediaRecorder) { mediaRecorder.stop(); isRecording.value = false; } }
+        function playAudio(u) { new Audio(u).play(); }
+
+        function handleModalTouchStart(e) { if (e.currentTarget.scrollTop <= 0) { touchYStart.value = e.touches[0].clientY; isDraggingModal.value = true; } }
+        function handleModalTouchMove(e) { if (isDraggingModal.value) { const d = e.touches[0].clientY - touchYStart.value; if (d > 0) { modalDeltaY.value = d; if (e.cancelable) e.preventDefault(); } else isDraggingModal.value = false; } }
+        function handleModalTouchEnd() { if (modalDeltaY.value > 150) { showAddModal.value = false; showCategoryDetailModal.value = false; } modalDeltaY.value = 0; isDraggingModal.value = false; }
+
+        async function addStockItem() { 
+            if (newStock.value.name) { 
+                stockPortfolio.value.push({ name: newStock.value.name, qty: newStock.value.qty || 0, buyPrice: newStock.value.buyPrice || 0, currentPrice: newStock.value.buyPrice || 0 }); 
+                newStock.value = { name: '', qty: null, buyPrice: null }; updateIcons(); await syncToCloud();
+            } 
+        }
+
+        // --- 4. 計算屬性 (定義在 function 之後) ---
         const yearRange = computed(() => { const y = new Date().getFullYear(); return Array.from({length: 12}, (_, i) => y - 5 + i); });
         const daysInMonth = computed(() => new Date(currentYear.value, currentMonth.value + 1, 0).getDate());
         const firstDayOfMonth = computed(() => new Date(currentYear.value, currentMonth.value, 1).getDay());
@@ -541,8 +809,8 @@ createApp({
         const currentDayData = computed(() => entries.value[currentDayKey.value]);
         const selectedDateString = computed(() => `${currentYear.value}年 ${currentMonth.value + 1}月 ${selectedDay.value}日`);
         const currentCategories = computed(() => categories.value.filter(c => c.type === newRecord.value.type || !c.type));
+        const categoryDetailRecords = computed(() => selectedCategoryForDetail.value ? getRecordsByCategory(selectedCategoryForDetail.value.name) : []);
 
-        // 色彩與數值計算 (紅收綠支)
         const dayTotalIncome = computed(() => (currentDayData.value?.records || []).filter(r => r.type === 'income').reduce((a, b) => a + (b.amount || 0), 0));
         const dayTotalExpense = computed(() => (currentDayData.value?.records || []).filter(r => r.type === 'expense').reduce((a, b) => a + (b.amount || 0), 0));
         const dayNetBalance = computed(() => dayTotalIncome.value - dayTotalExpense.value);
@@ -555,40 +823,17 @@ createApp({
 
         const stockTotalValue = computed(() => stockPortfolio.value.reduce((s, x) => s + ((x.currentPrice || x.buyPrice) * x.qty), 0));
         const stockTotalProfit = computed(() => stockPortfolio.value.reduce((s, x) => s + (((x.currentPrice || x.buyPrice) - x.buyPrice) * x.qty), 0));
-        const netWorth = computed(() => allDataTotals.value.net + stockTotalValue.value);
-
-        // 提取類別明細
-        const getRecordsByCategory = (catName) => {
-            const results = [];
-            Object.keys(entries.value).forEach(dateKey => {
-                const [y, m] = dateKey.split('-').map(Number);
-                let match = chartRange.value === 'all' || (chartRange.value === 'year' && y === currentYear.value) || (chartRange.value === 'month' && m === currentMonth.value+1);
-                if (match) {
-                    const dailyRecs = entries.value[dateKey].records || [];
-                    dailyRecs.forEach((r, idx) => {
-                        if (r.category === catName && r.type === chartMode.value) {
-                            results.push({ date: dateKey, record: r, originalIndex: idx });
-                        }
-                    });
-                }
-            });
-            return results.sort((a, b) => new Date(b.date) - new Date(a.date));
-        };
 
         const chartCategories = computed(() => {
             const totals = {};
-            const categoryColors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#9B59B6', '#F39C12', '#1ABC9C', '#E67E22', '#3498DB', '#7F8C8D'];
+            const colors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#9B59B6', '#F39C12', '#1ABC9C', '#E67E22', '#3498DB', '#7F8C8D'];
             Object.keys(entries.value).forEach(dateKey => {
-                const [y, m] = dateKey.split('-').map(Number);
-                let match = chartRange.value === 'all' || (chartRange.value === 'year' && y === currentYear.value) || (chartRange.value === 'month' && m === currentMonth.value+1);
-                if (match) (entries.value[dateKey].records || []).forEach(r => { if (r.type === chartMode.value) totals[r.category] = (totals[r.category] || 0) + r.amount; });
+                (entries.value[dateKey].records || []).forEach(r => { if (r.type === chartMode.value) totals[r.category] = (totals[r.category] || 0) + r.amount; });
             });
-            return Object.keys(totals).map(n => ({ name: n, value: totals[n] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: categoryColors[i % categoryColors.length] }));
+            return Object.keys(totals).map(n => ({ name: n, value: totals[n] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: colors[i % colors.length] }));
         });
 
         const chartTotalValue = computed(() => chartCategories.value.reduce((a, b) => a + b.value, 0) || 0);
-        
-        // 修正：計算甜甜圈圖的漸層字串
         const pieGradient = computed(() => {
             const total = chartTotalValue.value;
             if (total <= 0) return '#f1f5f9';
@@ -596,146 +841,45 @@ createApp({
             const parts = chartCategories.value.map(cat => {
                 const p = (cat.value / total) * 100;
                 const part = `${cat.color} ${offset}% ${offset + p}%`;
-                offset += p; 
-                return part;
+                offset += p; return part;
             });
             return `conic-gradient(${parts.join(', ')})`;
         });
 
-        const categoryDetailRecords = computed(() => selectedCategoryForDetail.value ? getRecordsByCategory(selectedCategoryForDetail.value.name) : []);
+        const modalStyle = computed(() => { 
+            if (!isDraggingModal.value && modalDeltaY.value === 0) return {}; 
+            return { 
+                transform: `translateY(${modalDeltaY.value}px) scale(${Math.max(0.85, 1 - modalDeltaY.value/2500)})`, 
+                opacity: Math.max(0.7, 1 - modalDeltaY.value/1000), 
+                transformOrigin: 'bottom center' 
+            }; 
+        });
 
-        // 方法
-        const updateIcons = () => nextTick(() => lucide.createIcons());
-        const formatNumber = (num) => Math.floor(num || 0).toLocaleString();
-        const showError = (msg) => { errorMsg.value = msg; setTimeout(() => { errorMsg.value = ''; }, 3000); };
-        const getCategoryIcon = (n) => categories.value.find(c => c.name === n)?.icon || '❓';
-        const getPhotoGridClass = (c) => c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48');
-
-        const changeYear = (delta) => currentYear.value += delta;
-        const changeMonth = (delta) => { 
-            let nm = currentMonth.value + delta;
-            if (nm > 11) { nm = 0; currentYear.value++; } else if (nm < 0) { nm = 11; currentYear.value--; }
-            currentMonth.value = nm;
-        };
-
-        const openAddModal = (tab = 'diary') => {
-            editTab.value = tab;
-            form.value = entries.value[currentDayKey.value] ? JSON.parse(JSON.stringify(entries.value[currentDayKey.value])) : { records: [], diaryText: '', feeling: '😊', photos: [], locations: [], audio: null };
-            showAddModal.value = true;
+        // --- 6. 生命週期 ---
+        onMounted(() => {
             updateIcons();
-        };
+            fb.onAuthStateChanged(auth, (u) => {
+                user.value = u;
+                if (u) loadFromCloud();
+                else isGlobalLoading.value = false;
+            });
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                fb.signInWithCustomToken(auth, __initial_auth_token).catch(() => { isGlobalLoading.value = false; });
+            } else isGlobalLoading.value = false;
+        });
 
-        const saveRecord = () => {
-            entries.value[currentDayKey.value] = JSON.parse(JSON.stringify(form.value));
-            showAddModal.value = false;
-            updateIcons();
-        };
-
-        const jumpToEdit = (dateStr, index) => {
-            const [y, m, d] = dateStr.split('-').map(Number);
-            currentYear.value = y;
-            currentMonth.value = m - 1;
-            selectedDay.value = d;
-            showCategoryDetailModal.value = false;
-            openAddModal('finance');
-        };
-
-        const deleteSpecificRecord = (dateStr, index) => {
-            if (entries.value[dateStr]) {
-                entries.value[dateStr].records.splice(index, 1);
-                updateIcons();
-            }
-        };
-
-        const jumpToCategoryDetails = (catName) => {
-            const cat = categories.value.find(c => c.name === catName);
-            if (cat) selectedCategoryForDetail.value = cat;
-            showCategoryDetailModal.value = true;
-            updateIcons();
-        };
-
-        const addNewRecord = () => { if (newRecord.value.amount) { form.value.records.unshift({ ...newRecord.value }); newRecord.value.amount = null; newRecord.value.note = ''; } };
-        const addStockItem = () => { if (newStock.value.name) { stockPortfolio.value.push({ name: newStock.value.name, qty: newStock.value.qty || 0, buyPrice: newStock.value.buyPrice || 0, currentPrice: newStock.value.buyPrice || 0 }); newStock.value = { name: '', qty: null, buyPrice: null }; updateIcons(); } };
-        
-        const updatePortfolioPrices = async () => {
-            if (!stockPortfolio.value.length) return;
-            isAILoading.value = true;
-            try {
-                const syms = stockPortfolio.value.map(s => s.name).join(', ');
-                const sys = `TWSE Official Analyst. SEARCH GOOGLE for the ABSOLUTE LATEST TRADE PRICES (成交價) on the Taiwan Stock Exchange for: ${syms}. 
-                Return ONLY clean JSON: {"2330": 1050}. If data unavailable or holiday, return last close. User Time: ${new Date().toLocaleString()}.`;
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `Search real-time TWSE prices for ${syms}` }] }], systemInstruction: { parts: [{ text: sys }] }, tools: [{ "google_search": {} }] })
-                });
-                const d = await res.json();
-                const match = d.candidates?.[0]?.content?.parts?.[0]?.text?.match(/\{[\s\S]*\}/);
-                if (match) {
-                    const priceMap = JSON.parse(match[0]);
-                    stockPortfolio.value.forEach(stk => {
-                        const id = stk.name.match(/\d{4,}/)?.[0] || stk.name;
-                        const matchKey = Object.keys(priceMap).find(k => k.includes(id) || id.includes(k));
-                        if (matchKey) stk.currentPrice = priceMap[matchKey];
-                    });
-                    lastSyncTime.value = new Date().toLocaleTimeString();
-                } else showError("資料抓取失敗");
-            } catch (e) { showError("資料抓取失敗"); }
-            isAILoading.value = false;
-        };
-
-        const debouncedSearch = () => {
-            clearTimeout(searchTimeout);
-            if (!newStock.value.name) { stockSuggestions.value = []; return; }
-            searchTimeout = setTimeout(async () => {
-                try {
-                    const system = `Lookup TWSE codes. Return JSON: [{"name": "台積電", "id": "2330"}]. Keyword: ${newStock.value.name}`;
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `Search ${newStock.value.name}` }] }], systemInstruction: { parts: [{ text: system }] }, tools: [{ "google_search": {} }] })
-                    });
-                    const d = await res.json();
-                    const match = d.candidates?.[0]?.content?.parts?.[0]?.text?.match(/\[[\s\S]*\]/);
-                    if (match) stockSuggestions.value = JSON.parse(match[0]);
-                } catch (e) {}
-            }, 800);
-        };
-        const selectStockSuggestion = (sug) => { newStock.value.name = `${sug.name}(${sug.id})`; stockSuggestions.value = []; };
-
-        const startStockLongPress = (stk, idx) => { longPressTimer = setTimeout(() => { editingStock.value = { ...stk }; editingStockIdx = idx; showEditStockModal.value = true; }, 800); };
-        const endStockLongPress = () => clearTimeout(longPressTimer);
-        const confirmEditStock = () => { if (editingStockIdx !== -1) stockPortfolio.value[editingStockIdx] = { ...editingStock.value }; showEditStockModal.value = false; };
-        const startCategoryLongPress = (cat) => { longPressTimer = setTimeout(() => { targetCategory = cat; categoryForm.value = { ...cat }; showEditCategory.value = true; }, 800); };
-        const endCategoryLongPress = () => clearTimeout(longPressTimer);
-        const closeCategoryModal = () => { showAddCategory.value = false; showEditCategory.value = false; categoryForm.value = { name: '', icon: '🍲' }; };
-        const confirmCategoryAction = () => { if (!categoryForm.value.name.trim()) return; if (showEditCategory.value && targetCategory) { targetCategory.name = categoryForm.value.name.trim(); targetCategory.icon = categoryForm.value.icon; } else { categories.value.push({ name: categoryForm.value.name.trim(), icon: categoryForm.value.icon, type: newRecord.value.type }); } closeCategoryModal(); };
-
-        const handleMultiPhotoUpload = (e) => { Array.from(e.target.files).slice(0, 10).forEach(file => { const reader = new FileReader(); reader.onload = (f) => form.value.photos.push(f.target.result); reader.readAsDataURL(file); }); };
-        const addLocation = () => { if (locationSearch.value.trim()) { form.value.locations.push({ name: locationSearch.value.trim() }); locationSearch.value = ''; updateIcons(); } };
-        const openGoogleMapsSearch = () => window.open(`https://www.google.com/maps`, '_blank');
-        const openGoogleMaps = (n) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(n)}`, '_blank');
-        const startRecording = async () => { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); mediaRecorder = new MediaRecorder(s); mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data); mediaRecorder.onstop = () => { const b = new Blob(audioChunks, { type: 'audio/webm' }); const r = new FileReader(); r.onload = (x) => form.value.audio = x.target.result; r.readAsDataURL(b); audioChunks = []; }; mediaRecorder.start(); isRecording.value = true; };
-        const stopRecording = () => { if (mediaRecorder) { mediaRecorder.stop(); isRecording.value = false; } };
-        const playAudio = (u) => new Audio(u).play();
-
-        const handleModalTouchStart = (e) => { if (e.currentTarget.scrollTop <= 0) { touchYStart.value = e.touches[0].clientY; isDraggingModal.value = true; } };
-        const handleModalTouchMove = (e) => { if (isDraggingModal.value) { const d = e.touches[0].clientY - touchYStart.value; if (d > 0) { modalDeltaY.value = d; if (e.cancelable) e.preventDefault(); } else isDraggingModal.value = false; } };
-        const handleModalTouchEnd = () => { if (modalDeltaY.value > 150) { showAddModal.value = false; showCategoryDetailModal.value = false; } modalDeltaY.value = 0; isDraggingModal.value = false; };
-        const modalStyle = computed(() => { if (!isDraggingModal.value && modalDeltaY.value === 0) return {}; return { transform: `translateY(${modalDeltaY.value}px) scale(${Math.max(0.85, 1 - modalDeltaY.value/2500)})`, opacity: Math.max(0.7, 1 - modalDeltaY.value/1000), transformOrigin: 'bottom center' }; });
-
-        onMounted(() => updateIcons());
-        watch([currentView, showAddModal, settings, editTab, chartRange, chartMode, showCategoryDetailModal], () => updateIcons());
+        watch([currentView, showAddModal, settings, editTab, chartRange, chartMode, showCategoryDetailModal, showLoginModal], () => updateIcons());
 
         return {
-            currentView, showAddModal, showYearPicker, showMonthPicker, showAddCategory, showEditCategory, showEditStockModal, showCategoryDetailModal,
-            yearRange, chartRange, chartMode, t, settings, currentYear, currentMonth, selectedDay, daysInMonth, firstDayOfMonth, selectedDateString, version, stockSuggestions, debouncedSearch,
+            currentView, showAddModal, showYearPicker, showMonthPicker, showAddCategory, showEditCategory, showEditStockModal, showCategoryDetailModal, showLoginModal,
+            yearRange, chartRange, chartMode, t, settings, currentYear, currentMonth, selectedDay, daysInMonth, firstDayOfMonth, selectedDateString, version: appVersion, stockSuggestions, debouncedSearch,
             getDayEntries: (d) => { const k = `${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const e = entries.value[k]; return { hasDiary: !!(e?.diaryText || e?.photos?.length || e?.audio), hasFinance: !!(e?.records?.length) }; },
             form, saveRecord, openAddModal, allDataTotals, formatNumber, chartCategories, chartTotalValue, pieGradient, dayNetBalance, dayTotalIncome, dayTotalExpense, editTab, newRecord, currentCategories, errorMsg, editingStock, addNewRecord, getCategoryIcon, iconPool, categoryForm, confirmCategoryAction, closeCategoryModal, startCategoryLongPress, endCategoryLongPress, startStockLongPress, endStockLongPress, confirmEditStock,
             stockPortfolio, newStock, addStockItem, updatePortfolioPrices, stockTotalValue, stockTotalProfit, isAILoading, lastSyncTime,
             handleModalTouchStart, handleModalTouchMove, handleModalTouchEnd, isDraggingModal, modalStyle,
-            handleMultiPhotoUpload, addLocation, locationSearch, openGoogleMaps, openGoogleMapsSearch, startRecording, stopRecording, playAudio, isRecording, selectStockSuggestion, netWorth, getPhotoGridClass, changeYear, changeMonth, currentDayData,
-            selectedCategoryForDetail, categoryDetailRecords, jumpToCategoryDetails, jumpToEdit, deleteSpecificRecord
+            handleMultiPhotoUpload, addLocation, locationSearch, openGoogleMaps, openGoogleMapsSearch, startRecording, stopRecording, playAudio, isRecording, selectStockSuggestion, getPhotoGridClass, changeYear, changeMonth, currentDayData,
+            selectedCategoryForDetail, categoryDetailRecords, jumpToCategoryDetails, jumpToEdit, deleteSpecificRecord,
+            user, handleGoogleLogin, handleLogout, isGlobalLoading, changeYearTo, changeMonthTo
         };
     }
 }).mount('#app');
