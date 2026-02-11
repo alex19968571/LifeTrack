@@ -218,7 +218,7 @@
                 </div>
             </div>
 
-            <!-- 分頁：帳本 -->
+            <!-- 分頁：帳本 (台灣習慣：紅收綠支) -->
             <section v-if="currentView === 'ledger'" class="animate-in fade-in duration-300">
                 <div class="p-4 bg-white border-b sticky top-0 z-10 shadow-sm">
                     <div class="calendar-grid text-center text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">
@@ -390,6 +390,7 @@
             
             <!-- 設定分頁 -->
             <section v-if="currentView === 'settings'" class="p-6 space-y-6">
+                <!-- 帳號與同步區塊 -->
                 <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-6 border border-slate-100">
                     <div class="flex items-center gap-4 mb-2">
                         <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-indigo-600 shadow-inner overflow-hidden">
@@ -459,14 +460,31 @@
             </div>
         </transition>
 
-        <!-- 編輯/新增視窗 (保持不變) -->
+        <!-- 編輯/新增視窗 (新增：左右滑動支援) -->
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
                 <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
-                <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[96vh] shadow-2xl modal-scrollable overflow-x-hidden" :class="{ 'modal-transition': !isDraggingModal }" :style="modalStyle" @touchstart="handleModalTouchStart" @touchmove="handleModalTouchMove" @touchend="handleModalTouchEnd">
+                <!-- 綁定手勢事件 -->
+                <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[96vh] shadow-2xl modal-scrollable overflow-x-hidden" 
+                     :class="{ 'modal-transition': !isDraggingModal }" 
+                     :style="modalStyle" 
+                     @touchstart="handleModalTouchStart" 
+                     @touchmove="handleModalTouchMove" 
+                     @touchend="handleModalTouchEnd">
+                     
                     <button @click="showAddModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-600 transition-colors z-[110]"><i data-lucide="x" class="w-6 h-6"></i></button>
+                    <!-- 滑動提示條 -->
                     <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div>
-                    <div class="flex justify-between items-center mb-6 px-1"><h2 class="text-[1.3em] font-black text-slate-800">{{ currentMonth+1 }}/{{ selectedDay }} {{ t('new_record') }}</h2><button @click="saveRecord" :style="{ backgroundColor: settings.themeColor }" class="text-white px-10 py-3 rounded-full font-black shadow-xl active:scale-95 transition-all text-[0.8em] mr-8">{{ t('save') }}</button></div>
+                    
+                    <div class="flex justify-between items-center mb-6 px-1">
+                        <div class="flex items-center gap-2">
+                             <!-- 加入左右切換的視覺提示 (可選) -->
+                             <button @click="changeDate(-1)" class="p-1 text-slate-300 hover:text-p"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                             <h2 class="text-[1.3em] font-black text-slate-800">{{ currentMonth+1 }}/{{ selectedDay }} {{ t('new_record') }}</h2>
+                             <button @click="changeDate(1)" class="p-1 text-slate-300 hover:text-p"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                        </div>
+                        <button @click="saveRecord" :style="{ backgroundColor: settings.themeColor }" class="text-white px-10 py-3 rounded-full font-black shadow-xl active:scale-95 transition-all text-[0.8em] mr-8">{{ t('save') }}</button>
+                    </div>
                     <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8"><button @click="editTab = 'diary'" :class="editTab === 'diary' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'diary' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_diary') }}</button><button @click="editTab = 'finance'" :class="editTab === 'finance' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'finance' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_finance') }}</button></div>
                     <div v-if="editTab === 'finance'" class="space-y-8 pb-24">
                         <div class="space-y-4">
@@ -510,7 +528,8 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 
 createApp({
     setup() {
-        const appVersion = "v1.2.4";
+        // --- 1. 版本與常數 ---
+        const appVersion = "v1.2.7";
         const fb = window.FirebaseSDK;
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = fb.initializeApp(firebaseConfig);
@@ -519,7 +538,7 @@ createApp({
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'lifetrack-pro';
         const apiKey = ""; 
 
-        // 核心狀態
+        // --- 2. 核心狀態 ---
         const currentYear = ref(new Date().getFullYear());
         const currentMonth = ref(new Date().getMonth());
         const selectedDay = ref(new Date().getDate());
@@ -530,6 +549,7 @@ createApp({
         const lastSyncTime = ref('');
         const errorMsg = ref('');
 
+        // UI 狀態
         const showAddModal = ref(false);
         const showCategoryDetailModal = ref(false);
         const showLoginModal = ref(false);
@@ -548,6 +568,8 @@ createApp({
         const isDraggingModal = ref(false);
         const touchYStart = ref(0);
         const modalDeltaY = ref(0);
+        const touchXStart = ref(0);
+        const modalDeltaX = ref(0);
 
         const editingStock = ref({ name: '', qty: 0, buyPrice: 0 });
         const selectedCategoryForDetail = ref(null);
@@ -590,7 +612,8 @@ createApp({
                 stat_btn: '智慧統計', no_diary_text: '尚未填寫今日日誌...', market_value: '市值', total_profit: '損益',
                 photo: '相片', location_map: '地點', search_on_map: '地圖', location_ph: '輸入地點...', add_new_line: '新增收支明細', journal_feeling: '感受',
                 edit_cat_title: '編輯類別', custom_cat_title: '自定義類別', cat_name_ph: '名稱',
-                account_sync: '帳號與同步', login_start_btn: '連結帳號', logout_btn: '登出帳號', not_logged_in: '尚未連結帳號', sync_hint: '連結 Google 帳號後，您的所有紀錄將自動備份至雲端。'
+                account_sync: '帳號', login_start_btn: '連結帳號', logout_btn: '登出帳號', not_logged_in: '尚未連結帳號', sync_hint: '連結 Google 帳號後，您的所有紀錄將自動備份至雲端。',
+                account: '帳號'
             },
             en: { 
                 ledger: 'Ledger', stocks: 'Stocks', charts: 'Analysis', settings: 'Settings', add: 'New',
@@ -617,7 +640,7 @@ createApp({
             return dictionary[lang]?.[key] || dictionary['zh'][key] || key;
         };
 
-        // --- 具名功能函式 ---
+        // --- 3. 具名功能函式 ---
         function updateIcons() { nextTick(() => { if(window.lucide) lucide.createIcons(); }); }
         function formatNumber(num) { return Math.floor(num || 0).toLocaleString(); }
         function showError(msg) { errorMsg.value = msg; setTimeout(() => { errorMsg.value = ''; }, 4000); }
@@ -632,6 +655,20 @@ createApp({
         }
         function changeYearTo(y) { currentYear.value = y; showYearPicker.value = false; showMonthPicker.value = true; }
         function changeMonthTo(m) { currentMonth.value = m; showMonthPicker.value = false; }
+        
+        function changeDate(delta) {
+             const d = new Date(currentYear.value, currentMonth.value, selectedDay.value + delta);
+             currentYear.value = d.getFullYear();
+             currentMonth.value = d.getMonth();
+             selectedDay.value = d.getDate();
+             loadFormData(); 
+        }
+        
+        function loadFormData() {
+             const k = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(selectedDay.value).padStart(2, '0')}`;
+             const e = entries.value[k];
+             form.value = e ? JSON.parse(JSON.stringify(e)) : { records: [], diaryText: '', feeling: '😊', photos: [], locations: [], audio: null };
+        }
 
         async function syncToCloud() {
             if (!user.value) return;
@@ -678,7 +715,6 @@ createApp({
             user.value = null; entries.value = {}; stockPortfolio.value = [];
         }
 
-        // --- 核心邏輯：類別明細提取 (Hoisted) ---
         function getRecordsByCategory(catName) {
             const results = [];
             Object.keys(entries.value).forEach(dateKey => {
@@ -690,7 +726,6 @@ createApp({
             return results.sort((a, b) => new Date(b.date) - new Date(a.date));
         }
 
-        // --- 補回：明細視窗相關函式 ---
         function jumpToCategoryDetails(catName) {
             const cat = categories.value.find(c => c.name === catName);
             if (cat) selectedCategoryForDetail.value = cat;
@@ -747,7 +782,7 @@ createApp({
         }
         function openAddModal(tab = 'diary') {
             editTab.value = tab;
-            form.value = entries.value[currentDayKey.value] ? JSON.parse(JSON.stringify(entries.value[currentDayKey.value])) : { records: [], diaryText: '', feeling: '😊', photos: [], locations: [], audio: null };
+            loadFormData();
             showAddModal.value = true; updateIcons();
         }
 
@@ -790,10 +825,37 @@ createApp({
         function stopRecording() { if (mediaRecorder) { mediaRecorder.stop(); isRecording.value = false; } }
         function playAudio(u) { new Audio(u).play(); }
 
-        function handleModalTouchStart(e) { if (e.currentTarget.scrollTop <= 0) { touchYStart.value = e.touches[0].clientY; isDraggingModal.value = true; } }
-        function handleModalTouchMove(e) { if (isDraggingModal.value) { const d = e.touches[0].clientY - touchYStart.value; if (d > 0) { modalDeltaY.value = d; if (e.cancelable) e.preventDefault(); } else isDraggingModal.value = false; } }
-        function handleModalTouchEnd() { if (modalDeltaY.value > 150) { showAddModal.value = false; showCategoryDetailModal.value = false; } modalDeltaY.value = 0; isDraggingModal.value = false; }
-
+        // --- 手勢操作 ---
+        function handleModalTouchStart(e) { 
+             if (e.currentTarget.scrollTop <= 0) { 
+                 touchYStart.value = e.touches[0].clientY; 
+                 touchXStart.value = e.touches[0].clientX;
+                 isDraggingModal.value = true; 
+             } 
+        }
+        
+        function handleModalTouchMove(e) { 
+            if (isDraggingModal.value) { 
+                const dy = e.touches[0].clientY - touchYStart.value; 
+                const dx = e.touches[0].clientX - touchXStart.value;
+                if (dy > 0) modalDeltaY.value = dy; 
+                modalDeltaX.value = dx;
+                if (dy > 0 && e.cancelable) e.preventDefault(); 
+            } 
+        }
+        
+        function handleModalTouchEnd() { 
+            if (Math.abs(modalDeltaX.value) > 60 && Math.abs(modalDeltaX.value) > Math.abs(modalDeltaY.value)) {
+                if (modalDeltaX.value > 0) changeDate(-1); 
+                else changeDate(1);
+            } else if (modalDeltaY.value > 150) { 
+                showAddModal.value = false; 
+                showCategoryDetailModal.value = false; 
+            } 
+            modalDeltaY.value = 0; modalDeltaX.value = 0; isDraggingModal.value = false; 
+        }
+        
+        // 補回缺失：新增股票
         async function addStockItem() { 
             if (newStock.value.name) { 
                 stockPortfolio.value.push({ name: newStock.value.name, qty: newStock.value.qty || 0, buyPrice: newStock.value.buyPrice || 0, currentPrice: newStock.value.buyPrice || 0 }); 
@@ -848,10 +910,12 @@ createApp({
 
         const modalStyle = computed(() => { 
             if (!isDraggingModal.value && modalDeltaY.value === 0) return {}; 
+            const xOffset = Math.abs(modalDeltaX.value) > Math.abs(modalDeltaY.value) ? modalDeltaX.value * 0.5 : 0;
             return { 
-                transform: `translateY(${modalDeltaY.value}px) scale(${Math.max(0.85, 1 - modalDeltaY.value/2500)})`, 
+                transform: `translate(${xOffset}px, ${modalDeltaY.value}px) scale(${Math.max(0.85, 1 - modalDeltaY.value/2500)})`, 
                 opacity: Math.max(0.7, 1 - modalDeltaY.value/1000), 
-                transformOrigin: 'bottom center' 
+                transformOrigin: 'bottom center',
+                transition: isDraggingModal.value ? 'none' : 'transform 0.3s ease'
             }; 
         });
 
@@ -879,7 +943,8 @@ createApp({
             handleModalTouchStart, handleModalTouchMove, handleModalTouchEnd, isDraggingModal, modalStyle,
             handleMultiPhotoUpload, addLocation, locationSearch, openGoogleMaps, openGoogleMapsSearch, startRecording, stopRecording, playAudio, isRecording, selectStockSuggestion, getPhotoGridClass, changeYear, changeMonth, currentDayData,
             selectedCategoryForDetail, categoryDetailRecords, jumpToCategoryDetails, jumpToEdit, deleteSpecificRecord,
-            user, handleGoogleLogin, handleLogout, isGlobalLoading, changeYearTo, changeMonthTo
+            user, handleGoogleLogin, handleLogout, isGlobalLoading, changeYearTo, changeMonthTo,
+            changeDate, loadFormData
         };
     }
 }).mount('#app');
