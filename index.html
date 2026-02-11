@@ -150,6 +150,11 @@
         <p class="text-[10px] font-black text-slate-400 tracking-widest uppercase">Cloud Syncing...</p>
     </div>
 
+    <!-- 未配置 Firebase 警告 (若使用者未填入配置) -->
+    <div v-if="firebaseConfigMissing" class="absolute top-0 left-0 right-0 z-[210] bg-red-600 text-white p-4 text-center text-xs font-bold">
+        請在程式碼中填入您的 Firebase 設定以啟用雲端功能
+    </div>
+
     <div :class="['w-full sm:max-w-md h-full bg-slate-50 shadow-2xl relative flex flex-col overflow-hidden transition-all duration-300', 'app-font-' + settings.fontSize]">
         
         <!-- 通知列 -->
@@ -460,11 +465,10 @@
             </div>
         </transition>
 
-        <!-- 編輯/新增視窗 (新增：左右滑動支援) -->
+        <!-- 編輯/新增視窗 -->
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
                 <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
-                <!-- 綁定手勢事件 -->
                 <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[96vh] shadow-2xl modal-scrollable overflow-x-hidden" 
                      :class="{ 'modal-transition': !isDraggingModal }" 
                      :style="modalStyle" 
@@ -478,7 +482,6 @@
                     
                     <div class="flex justify-between items-center mb-6 px-1">
                         <div class="flex items-center gap-2">
-                             <!-- 加入左右切換的視覺提示 (可選) -->
                              <button @click="changeDate(-1)" class="p-1 text-slate-300 hover:text-p"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
                              <h2 class="text-[1.3em] font-black text-slate-800">{{ currentMonth+1 }}/{{ selectedDay }} {{ t('new_record') }}</h2>
                              <button @click="changeDate(1)" class="p-1 text-slate-300 hover:text-p"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
@@ -511,7 +514,7 @@
             </div>
         </transition>
 
-        <!-- 明細跳窗 -->
+        <!-- 明細與類別跳窗 -->
         <transition name="fade"><div v-if="showCategoryDetailModal" class="fixed inset-0 z-[120] flex items-end justify-center"><div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showCategoryDetailModal = false"></div><div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[85vh] shadow-2xl modal-scrollable overflow-x-hidden" :class="{ 'modal-transition': !isDraggingModal }" :style="modalStyle" @touchstart="handleModalTouchStart" @touchmove="handleModalTouchMove" @touchend="handleModalTouchEnd"><button @click="showCategoryDetailModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-600 transition-colors z-[110]"><i data-lucide="x" class="w-6 h-6"></i></button><div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div><div class="flex items-center gap-3 mb-6 px-2"><div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[1.5em]">{{ selectedCategoryForDetail?.icon || '?' }}</div><h2 class="text-[1.5em] font-black text-slate-800">{{ selectedCategoryForDetail?.name }} {{ t('new_record') }}</h2></div><div class="space-y-4 pb-12"><div v-for="(item, idx) in categoryDetailRecords" :key="idx" @click="jumpToEdit(item.date, item.originalIndex)" class="flex justify-between items-center bg-slate-50 p-4 rounded-[1.5rem] cursor-pointer hover:bg-slate-100 transition-all"><div class="flex flex-col"><span class="text-[0.7em] font-bold text-slate-400 uppercase tracking-widest">{{ item.date }}</span><span class="text-[0.9em] font-black text-slate-700 truncate w-48">{{ item.record.note || '---' }}</span></div><div class="flex items-center gap-4"><span class="font-mono font-black text-[1.1em]" :class="item.record.type==='income'?'text-red-500':'text-green-600'">{{ item.record.type==='income'?'+':'-' }}{{ formatNumber(item.record.amount) }}</span><button @click.stop="deleteSpecificRecord(item.date, item.originalIndex)" class="text-slate-300 hover:text-red-500 transition-colors p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div><div v-if="categoryDetailRecords.length === 0" class="text-center py-12 text-slate-300 font-bold">目前無此類別資料</div></div></div></div></transition>
         <transition name="fade"><div v-if="showEditStockModal" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showEditStockModal = false"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-xl font-black mb-6 text-slate-800">編輯投資項目</h3><div class="space-y-4"><div class="p-4 bg-slate-50 rounded-2xl"><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">股票名稱</p><p class="font-black text-p">{{ editingStock?.name || '---' }}</p></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">股數</p><input v-model.number="editingStock.qty" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">成本</p><input v-model.number="editingStock.buyPrice" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div></div><div class="flex gap-4 pt-4"><button @click="showEditStockModal = false" class="flex-1 py-4 rounded-2xl font-black text-slate-400">{{ t('cancel') }}</button><button @click="confirmEditStock" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95">更新</button></div></div></div></div></transition>
         <transition name="fade"><div v-if="showAddCategory || showEditCategory" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeCategoryModal"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-[1.25em] font-black mb-8 text-slate-800">{{ showEditCategory ? t('edit_cat_title') : t('custom_cat_title') }}</h3><div class="space-y-8"><div class="grid grid-cols-5 gap-3 max-h-48 overflow-y-auto p-1 hide-scrollbar"><button v-for="ico in iconPool" :key="ico" @click="categoryForm.icon = ico" :class="categoryForm.icon === ico ? 'bg-indigo-100 ring-4 ring-indigo-200' : 'bg-slate-50'" class="text-[1.5em] p-3 rounded-2xl transition-all flex items-center justify-center">{{ ico }}</button></div><input v-model="categoryForm.name" type="text" class="w-full bg-slate-50 p-5 rounded-3xl outline-none font-bold border-none shadow-inner text-[0.9em]" :placeholder="t('cat_name_ph')"><div class="flex gap-4 pt-4"><button @click="closeCategoryModal" class="flex-1 py-5 rounded-2xl font-black text-slate-400 text-[0.8em]">{{ t('cancel') }}</button><button @click="confirmCategoryAction" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 text-[0.8em]">{{ t('confirm') }}</button></div></div></div></div></transition>
@@ -528,17 +531,45 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 
 createApp({
     setup() {
-        // --- 1. 版本與常數 ---
+        // --- 1. Phase 1: 常數與 Firebase 初始化 ---
         const appVersion = "v1.2.7";
+        
+        // 嘗試讀取環境變數，若無則使用使用者自定義配置
+        let firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        let firebaseConfig;
+        let firebaseConfigMissing = false;
+
+        if (firebaseConfigStr) {
+            firebaseConfig = JSON.parse(firebaseConfigStr);
+        } else {
+            // Placeholder: 在 GitHub 等環境部署時，請填入您的 Firebase 設定
+            firebaseConfig = {
+                apiKey: "YOUR_API_KEY_HERE",
+                authDomain: "YOUR_AUTH_DOMAIN_HERE",
+                projectId: "YOUR_PROJECT_ID_HERE",
+                storageBucket: "YOUR_STORAGE_BUCKET_HERE",
+                messagingSenderId: "YOUR_SENDER_ID_HERE",
+                appId: "YOUR_APP_ID_HERE"
+            };
+            // 標記配置缺失，用於 UI 提示 (可選)
+            // console.warn("使用預設 Firebase 配置，請在程式碼中填入您的設定。");
+        }
+
         const fb = window.FirebaseSDK;
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = fb.initializeApp(firebaseConfig);
-        const auth = fb.getAuth(app);
-        const db = fb.getFirestore(app);
+        let app, auth, db;
+        
+        try {
+            app = fb.initializeApp(firebaseConfig);
+            auth = fb.getAuth(app);
+            db = fb.getFirestore(app);
+        } catch (e) {
+            console.error("Firebase Init Failed:", e);
+        }
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'lifetrack-pro';
         const apiKey = ""; 
 
-        // --- 2. 核心狀態 ---
+        // --- 2. Phase 2: 響應式狀態 (Refs) ---
         const currentYear = ref(new Date().getFullYear());
         const currentMonth = ref(new Date().getMonth());
         const selectedDay = ref(new Date().getDate());
@@ -549,7 +580,6 @@ createApp({
         const lastSyncTime = ref('');
         const errorMsg = ref('');
 
-        // UI 狀態
         const showAddModal = ref(false);
         const showCategoryDetailModal = ref(false);
         const showLoginModal = ref(false);
@@ -558,6 +588,7 @@ createApp({
         const showAddCategory = ref(false);
         const showEditCategory = ref(false);
         const showEditStockModal = ref(false);
+        
         const chartRange = ref('all');
         const chartMode = ref('expense');
         const isAILoading = ref(false);
@@ -635,12 +666,12 @@ createApp({
             }
         };
 
-        const t = (key) => {
+        // --- 3. Phase 3: 核心功能函式 (Functions) ---
+        function t(key) {
             const lang = settings.value.lang || 'zh';
             return dictionary[lang]?.[key] || dictionary['zh'][key] || key;
-        };
+        }
 
-        // --- 3. 具名功能函式 ---
         function updateIcons() { nextTick(() => { if(window.lucide) lucide.createIcons(); }); }
         function formatNumber(num) { return Math.floor(num || 0).toLocaleString(); }
         function showError(msg) { errorMsg.value = msg; setTimeout(() => { errorMsg.value = ''; }, 4000); }
@@ -854,8 +885,7 @@ createApp({
             } 
             modalDeltaY.value = 0; modalDeltaX.value = 0; isDraggingModal.value = false; 
         }
-        
-        // 補回缺失：新增股票
+
         async function addStockItem() { 
             if (newStock.value.name) { 
                 stockPortfolio.value.push({ name: newStock.value.name, qty: newStock.value.qty || 0, buyPrice: newStock.value.buyPrice || 0, currentPrice: newStock.value.buyPrice || 0 }); 
@@ -863,7 +893,7 @@ createApp({
             } 
         }
 
-        // --- 4. 計算屬性 (定義在 function 之後) ---
+        // --- 4. Phase 4: 計算屬性 (Computed) ---
         const yearRange = computed(() => { const y = new Date().getFullYear(); return Array.from({length: 12}, (_, i) => y - 5 + i); });
         const daysInMonth = computed(() => new Date(currentYear.value, currentMonth.value + 1, 0).getDate());
         const firstDayOfMonth = computed(() => new Date(currentYear.value, currentMonth.value, 1).getDay());
@@ -919,7 +949,7 @@ createApp({
             }; 
         });
 
-        // --- 6. 生命週期 ---
+        // --- 5. Phase 5: 生命週期與監聽 ---
         onMounted(() => {
             updateIcons();
             fb.onAuthStateChanged(auth, (u) => {
@@ -927,6 +957,7 @@ createApp({
                 if (u) loadFromCloud();
                 else isGlobalLoading.value = false;
             });
+            // 嘗試環境變數登入
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 fb.signInWithCustomToken(auth, __initial_auth_token).catch(() => { isGlobalLoading.value = false; });
             } else isGlobalLoading.value = false;
@@ -934,6 +965,7 @@ createApp({
 
         watch([currentView, showAddModal, settings, editTab, chartRange, chartMode, showCategoryDetailModal, showLoginModal], () => updateIcons());
 
+        // --- 6. Phase 6: 回傳 ---
         return {
             currentView, showAddModal, showYearPicker, showMonthPicker, showAddCategory, showEditCategory, showEditStockModal, showCategoryDetailModal, showLoginModal,
             yearRange, chartRange, chartMode, t, settings, currentYear, currentMonth, selectedDay, daysInMonth, firstDayOfMonth, selectedDateString, version: appVersion, stockSuggestions, debouncedSearch,
@@ -944,7 +976,7 @@ createApp({
             handleMultiPhotoUpload, addLocation, locationSearch, openGoogleMaps, openGoogleMapsSearch, startRecording, stopRecording, playAudio, isRecording, selectStockSuggestion, getPhotoGridClass, changeYear, changeMonth, currentDayData,
             selectedCategoryForDetail, categoryDetailRecords, jumpToCategoryDetails, jumpToEdit, deleteSpecificRecord,
             user, handleGoogleLogin, handleLogout, isGlobalLoading, changeYearTo, changeMonthTo,
-            changeDate, loadFormData
+            changeDate, loadFormData, firebaseConfigMissing
         };
     }
 }).mount('#app');
