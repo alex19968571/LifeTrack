@@ -43,43 +43,30 @@
         .card-shadow { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
         .safe-pb { padding-bottom: calc(8.5rem + env(safe-area-inset-bottom)); }
 
-        /* PowerPoint 風格 3D 圓餅圖 */
-        .pie-3d-wrapper {
-            perspective: 800px;
-            width: 200px;
-            height: 180px;
+        /* 甜甜圈圖 (Donut Chart) - 修正色彩顯示問題 */
+        .pie-chart-flat {
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
             position: relative;
             margin: 20px auto;
+            /* 修正：由 var 直接接收完整的 gradient 字串 */
+            background: var(--gradient, #f1f5f9); 
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .pie-3d-body {
-            width: 180px;
-            height: 180px;
-            border-radius: 50%;
-            transform: rotateX(45deg);
-            position: relative;
-            z-index: 2;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-        .pie-3d-side {
+        .pie-hole {
             position: absolute;
-            top: 12px; 
-            left: 0;
-            width: 180px;
-            height: 180px;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 155px; height: 155px;
+            background-color: #ffffff;
             border-radius: 50%;
-            transform: rotateX(45deg);
-            background: rgba(0, 0, 0, 0.15);
-            z-index: 1;
-            filter: blur(1px);
-        }
-        .pie-shadow-bottom {
-            position: absolute;
-            bottom: -15px;
-            left: 10%;
-            width: 80%;
-            height: 40px;
-            background: radial-gradient(ellipse at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 70%);
-            z-index: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.02);
         }
 
         /* 照片縮圖 */
@@ -138,6 +125,10 @@
         }
         .slide-down-enter-active, .slide-down-leave-active { transition: all 0.3s ease; }
         .slide-down-enter-from, .slide-down-leave-to { transform: translateY(-100%); opacity: 0; }
+        
+        .photo-grid-1 { grid-template-columns: 1fr; }
+        .photo-grid-2 { grid-template-columns: 1fr 1fr; }
+        .photo-grid-3 { grid-template-areas: "a b" "a c"; grid-template-columns: 1.5fr 1fr; }
     </style>
 </head>
 <body class="antialiased overflow-hidden text-slate-900">
@@ -155,7 +146,6 @@
 
         <!-- 標題區域 -->
         <header :style="{ backgroundColor: settings.themeColor }" class="p-4 text-white shadow-md shrink-0 z-50 transition-all duration-500">
-            <!-- 帳本頁面 -->
             <div v-if="currentView === 'ledger'" class="space-y-2">
                 <div class="flex items-center justify-between">
                     <button @click="changeYear(-1)" class="p-2 active:opacity-50 transition-all"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
@@ -168,7 +158,6 @@
                     <button @click="changeMonth(1)" class="p-2 active:opacity-50 transition-all"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                 </div>
             </div>
-            <!-- 其他頁面 -->
             <div v-else class="flex justify-between items-center">
                 <div class="flex items-center gap-2">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-sm">
@@ -214,7 +203,7 @@
                 </div>
             </div>
 
-            <!-- 分頁渲染 -->
+            <!-- 分頁：帳本 (紅收綠支) -->
             <section v-if="currentView === 'ledger'" class="animate-in fade-in duration-300">
                 <div class="p-4 bg-white border-b sticky top-0 z-10 shadow-sm">
                     <div class="calendar-grid text-center text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">
@@ -238,7 +227,7 @@
 
                 <div class="p-4 space-y-4">
                     <h3 class="text-[0.75em] font-black text-slate-400 uppercase tracking-wider px-1">{{ selectedDateString }}</h3>
-                    <div class="space-y-4">
+                    <div v-if="currentDayData" class="space-y-4">
                         <div @click="openAddModal('finance')" class="bg-white p-5 rounded-[1.5rem] card-shadow border border-slate-100 cursor-pointer active:scale-[0.98] transition-all">
                             <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-2">
                                 <div class="flex items-center gap-2"><i data-lucide="circle-dollar-sign" class="w-4 h-4 text-p"></i><span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_finance') }}</span></div>
@@ -246,10 +235,10 @@
                             </div>
                             <div class="flex justify-between items-center">
                                 <div class="flex flex-col gap-2">
-                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-black"><i data-lucide="arrow-down-left" class="w-3 h-3"></i></div><span class="text-[0.95em] font-black text-green-600 font-mono">+{{ formatNumber(dayTotalIncome) }}</span></div>
-                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-black"><i data-lucide="arrow-up-right" class="w-3 h-3"></i></div><span class="text-[0.95em] font-black text-red-600 font-mono">-{{ formatNumber(dayTotalExpense) }}</span></div>
+                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-black"><i data-lucide="arrow-down-left" class="w-3 h-3"></i></div><span class="text-[0.95em] font-black text-red-600 font-mono">+{{ formatNumber(dayTotalIncome) }}</span></div>
+                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-black"><i data-lucide="arrow-up-right" class="w-3 h-3"></i></div><span class="text-[0.95em] font-black text-green-600 font-mono">-{{ formatNumber(dayTotalExpense) }}</span></div>
                                 </div>
-                                <div class="text-right"><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">{{ t('daily_net') }}</p><div :class="dayNetBalance >= 0 ? 'text-green-600' : 'text-red-600'" class="text-[1.8em] font-black font-mono tracking-tighter leading-none">{{ dayNetBalance >= 0 ? '+' : '' }}{{ formatNumber(dayNetBalance) }}</div></div>
+                                <div class="text-right"><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">{{ t('daily_net') }}</p><div :class="dayNetBalance >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[1.8em] font-black font-mono tracking-tighter leading-none">{{ dayNetBalance >= 0 ? '+' : '' }}{{ formatNumber(dayNetBalance) }}</div></div>
                             </div>
                         </div>
 
@@ -262,7 +251,7 @@
                 </div>
             </section>
 
-            <!-- 分頁：股市投資 -->
+            <!-- 分頁：股市投資 (紅漲綠跌) -->
             <section v-if="currentView === 'stocks'" class="p-6 space-y-6 animate-in fade-in">
                 <div class="bg-slate-900 text-white p-7 rounded-[2.5rem] shadow-xl relative overflow-hidden">
                     <div class="absolute -right-5 -top-5 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl"></div>
@@ -270,7 +259,7 @@
                         <div class="flex justify-between items-center border-b border-white/10 pb-5">
                             <div class="flex-1"><p class="text-[0.6em] opacity-50 uppercase font-black tracking-widest">{{ t('market_value') }}</p><p class="text-xl font-black font-mono tracking-tighter">${{ formatNumber(stockTotalValue) }}</p></div>
                             <div class="w-px h-8 bg-white/10 mx-2"></div>
-                            <div class="flex-1"><p class="text-[0.6em] opacity-50 uppercase font-black tracking-widest">{{ t('total_profit') }}</p><p :class="stockTotalProfit >= 0 ? 'text-green-400' : 'text-red-400'" class="text-xl font-black font-mono tracking-tighter">{{ stockTotalProfit >= 0 ? '+' : '' }}{{ formatNumber(stockTotalProfit) }}</p></div>
+                            <div class="flex-1"><p class="text-[0.6em] opacity-50 uppercase font-black tracking-widest">{{ t('total_profit') }}</p><p :class="stockTotalProfit >= 0 ? 'text-red-400' : 'text-green-400'" class="text-xl font-black font-mono tracking-tighter">{{ stockTotalProfit >= 0 ? '+' : '' }}{{ formatNumber(stockTotalProfit) }}</p></div>
                         </div>
                         <button @click="updatePortfolioPrices" :disabled="isAILoading" class="w-full py-3 bg-white/10 rounded-2xl font-black text-[0.75em] flex items-center justify-center gap-2 active:scale-95 transition-all"><i v-if="isAILoading" data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>{{ isAILoading ? t('fetching') : t('stat_btn') }}</button>
                     </div>
@@ -283,11 +272,10 @@
                             <div class="min-w-0 flex-1"><p class="text-sm font-black text-slate-800 truncate pr-2">{{ stk?.name || '---' }}</p><p class="text-[0.6em] text-slate-400 font-bold uppercase mt-1">{{ stk?.qty }} {{ t('shares_unit') }} · cost - {{ formatNumber(stk?.buyPrice) }}</p></div>
                         </div>
                         <div class="flex items-center gap-4 text-right shrink-0">
-                            <div><p :class="((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? 'text-green-600' : 'text-red-600'" class="text-[0.9em] font-black font-mono">{{ ((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? '+' : '' }}{{ formatNumber(((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) * (stk?.qty || 0)) }}</p><p class="text-[0.55em] text-slate-400 font-bold uppercase">現價: {{ stk?.currentPrice || '---' }}</p></div>
+                            <div><p :class="((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[0.9em] font-black font-mono">{{ ((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? '+' : '' }}{{ formatNumber(((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) * (stk?.qty || 0)) }}</p><p class="text-[0.55em] text-slate-400 font-bold uppercase">現價: {{ stk?.currentPrice || '---' }}</p></div>
                             <button @click.stop="stockPortfolio.splice(idx, 1)" class="text-slate-200 hover:text-red-400 p-1 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                         </div>
                     </div>
-                    <!-- 新增表單 -->
                     <div class="p-6 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4 relative">
                         <div class="relative">
                             <input v-model="newStock.name" @input="debouncedSearch" type="text" class="bg-slate-50 w-full p-4 rounded-2xl text-[0.85em] font-black outline-none border-none shadow-inner" :placeholder="t('stock_name_ph')">
@@ -306,44 +294,64 @@
                 </div>
             </section>
 
-            <!-- 分頁：分析統計 (3D) -->
+            <!-- 分頁：分析統計 (甜甜圈圖) -->
             <section v-if="currentView === 'charts'" class="p-6 space-y-8 animate-in fade-in text-center text-slate-700">
                 <div class="bg-white p-4 rounded-[2rem] card-shadow border border-slate-50 flex items-center justify-between transition-all overflow-hidden gap-1">
-                    <div class="flex-1 min-w-0"><p class="text-[0.5em] font-black text-green-600 uppercase mb-0.5 truncate">{{ t('income_short') }}</p><p class="text-[0.75em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.income) }}</p></div>
+                    <div class="flex-1 min-w-0"><p class="text-[0.5em] font-black text-red-600 uppercase mb-0.5 truncate">{{ t('income_short') }}</p><p class="text-[0.75em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.income) }}</p></div>
                     <div class="h-6 w-px bg-slate-100"></div>
-                    <div class="flex-1 min-w-0"><p class="text-[0.5em] font-black text-red-500 uppercase mb-0.5 truncate">{{ t('expense_short') }}</p><p class="text-[0.75em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.expense) }}</p></div>
+                    <div class="flex-1 min-w-0"><p class="text-[0.5em] font-black text-green-600 uppercase mb-0.5 truncate">{{ t('expense_short') }}</p><p class="text-[0.75em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.expense) }}</p></div>
                     <div class="h-6 w-px bg-slate-100"></div>
                     <div class="flex-1 min-w-0"><p class="text-[0.5em] font-black text-indigo-500 uppercase mb-0.5 truncate">{{ t('balance') }}</p><p class="text-[0.75em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.net) }}</p></div>
                     <div class="h-6 w-px bg-slate-100"></div>
-                    <div class="flex-1 min-w-0"><p class="text-[0.5em] font-black text-orange-500 uppercase mb-0.5 truncate">{{ t('unrealized_pl_short') }}</p><p :class="stockTotalProfit >= 0 ? 'text-green-600' : 'text-red-600'" class="text-[0.75em] font-black truncate">${{ formatNumber(stockTotalProfit) }}</p></div>
+                    <div class="flex-1 min-w-0"><p class="text-[0.5em] font-black text-orange-500 uppercase mb-0.5 truncate">{{ t('unrealized_pl_short') }}</p><p :class="stockTotalProfit >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[0.75em] font-black truncate">${{ formatNumber(stockTotalProfit) }}</p></div>
                 </div>
 
                 <div class="bg-white p-8 rounded-[3rem] card-shadow flex flex-col items-center border border-slate-50 overflow-hidden">
-                    <div class="flex justify-between items-center w-full mb-8">
+                    <div class="flex justify-between items-center w-full mb-8 px-2">
                         <h4 class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ chartMode === 'expense' ? t('expense_structure') : t('income_structure') }}</h4>
-                        <div class="flex bg-slate-50 p-1 rounded-full text-[0.6em] font-black overflow-hidden border border-slate-100">
-                            <button @click="chartMode = 'expense'" :class="chartMode === 'expense' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-1.5 rounded-full transition-all">{{ t('expense_short') }}</button>
-                            <button @click="chartMode = 'income'" :class="chartMode === 'income' ? 'bg-green-600 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-1.5 rounded-full transition-all">{{ t('income_short') }}</button>
+                        <div class="flex bg-slate-50 p-1 rounded-full text-[0.6em] font-black border border-slate-100 overflow-hidden">
+                            <button @click="chartMode = 'expense'" :class="chartMode === 'expense' ? 'bg-green-600 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-1.5 rounded-full transition-all">{{ t('expense_short') }}</button>
+                            <button @click="chartMode = 'income'" :class="chartMode === 'income' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-1.5 rounded-full transition-all">{{ t('income_short') }}</button>
                         </div>
                     </div>
-                    <div class="pie-3d-wrapper">
-                        <div class="pie-3d-body" :style="{ background: pieGradient }"></div>
-                        <div class="pie-3d-side"></div>
-                        <div class="pie-shadow-bottom"></div>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center z-10" style="transform: translateZ(50px);">
-                             <p class="text-[0.5em] text-slate-400 font-black uppercase">{{ chartMode === 'expense' ? t('expense') : t('income') }}</p>
-                             <p class="text-xs font-black" :class="chartMode === 'expense' ? 'text-red-500' : 'text-green-600'">${{ formatNumber(chartTotalValue) }}</p>
+                    
+                    <!-- 甜甜圈圖主體 -->
+                    <div class="pie-chart-flat" :style="{ '--gradient': pieGradient }">
+                        <div class="pie-hole">
+                            <p class="text-[0.5em] text-slate-400 font-black uppercase tracking-widest mb-1">{{ chartMode === 'expense' ? t('expense') : t('income') }}</p>
+                            <p class="text-[1.25rem] font-black leading-tight" :class="chartMode === 'expense' ? 'text-green-600' : 'text-red-500'">${{ formatNumber(chartTotalValue) }}</p>
                         </div>
                     </div>
-                    <div class="w-full mt-10 grid grid-cols-2 gap-3 text-left">
-                        <div v-for="cat in chartCategories" :key="cat.name" class="flex items-center p-3 rounded-[1.5rem] bg-slate-50 border border-slate-100 shadow-sm"><div class="w-3 h-3 rounded-full mr-3 shrink-0" :style="{backgroundColor: cat.color}"></div><div class="flex flex-col min-w-0"><span class="text-[0.9em] font-black text-slate-500 truncate">{{ cat.name }}</span><span class="text-xs font-black text-slate-800">${{ formatNumber(cat.value) }}</span></div></div>
+
+                    <!-- 類別明細列 -->
+                    <div class="w-full mt-10 space-y-2">
+                        <template v-for="(cat, cidx) in chartCategories" :key="cat.name">
+                             <div @click="jumpToCategoryDetails(cat.name)" class="group flex items-center p-3 rounded-[1.25rem] bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all cursor-pointer">
+                                <div class="w-8 text-center text-[0.7em] font-black text-slate-300">{{ cidx + 1 }}</div>
+                                <div class="w-4 h-4 rounded-full mr-3 shrink-0 shadow-sm" :style="{backgroundColor: cat.color}"></div>
+                                <div class="flex flex-col min-w-0 flex-1 text-left">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-[0.9em] font-black text-slate-700 truncate">{{ cat.name }}</span>
+                                        <span class="text-[0.8em] font-black" :class="chartMode==='expense'?'text-green-600':'text-red-500'">${{ formatNumber(cat.value) }}</span>
+                                    </div>
+                                    <div class="h-1.5 bg-slate-100 rounded-full w-full overflow-hidden">
+                                        <div class="h-full rounded-full transition-all duration-700" :style="{ width: (cat.value / chartTotalValue * 100) + '%', backgroundColor: cat.color }"></div>
+                                    </div>
+                                </div>
+                                <div class="w-10 text-right">
+                                    <span class="text-[0.65em] font-bold text-slate-400">{{ chartTotalValue > 0 ? Math.round((cat.value / chartTotalValue) * 100) : 0 }}%</span>
+                                </div>
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 ml-1 group-hover:text-slate-400 transition-colors"></i>
+                            </div>
+                        </template>
+                        <div v-if="chartCategories.length === 0" class="py-12 opacity-30 text-center font-black text-xs">目前無資料</div>
                     </div>
                 </div>
             </section>
-
+            
             <!-- 設定分頁 -->
             <section v-if="currentView === 'settings'" class="p-6">
-                <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-8">
+                <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-8 transition-all">
                     <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700">{{ t('lang_label') }}</span>
                         <select v-model="settings.lang" class="bg-slate-50 rounded-xl px-4 py-3 font-black text-[0.7em] outline-none border-none ring-1 ring-slate-100"><option value="zh">繁體中文</option><option value="en">English</option></select>
                     </div>
@@ -358,7 +366,7 @@
             </section>
         </main>
 
-        <!-- 彈出窗：紀錄詳情 -->
+        <!-- 新增/編輯視窗 -->
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
                 <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
@@ -368,12 +376,14 @@
                     <div class="flex justify-between items-center mb-6 px-1"><h2 class="text-[1.3em] font-black text-slate-800">{{ currentMonth+1 }}/{{ selectedDay }} {{ t('new_record') }}</h2><button @click="saveRecord" :style="{ backgroundColor: settings.themeColor }" class="text-white px-10 py-3 rounded-full font-black shadow-xl active:scale-95 transition-all text-[0.8em] mr-8">{{ t('save') }}</button></div>
                     <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8"><button @click="editTab = 'diary'" :class="editTab === 'diary' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'diary' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_diary') }}</button><button @click="editTab = 'finance'" :class="editTab === 'finance' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'finance' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_finance') }}</button></div>
 
+                    <!-- 財務輸入 -->
                     <div v-if="editTab === 'finance'" class="space-y-8 pb-24">
                         <div class="space-y-4">
-                            <div v-for="(rec, ridx) in form.records" :key="ridx" class="flex items-center justify-between bg-white p-4 rounded-[1.5rem] card-shadow border border-slate-50"><div class="flex items-center min-w-0 flex-1"><div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mr-3 text-[1.25em] shadow-inner">{{ getCategoryIcon(rec?.category) }}</div><div class="min-w-0 flex-1"><p class="text-sm font-black text-slate-800">{{ rec?.category }}</p><p v-if="rec?.note" class="text-[10px] text-slate-400 font-bold truncate pr-4">{{ rec?.note }}</p></div></div><div class="flex items-center gap-3"><span :class="rec?.type === 'income' ? 'text-green-600' : 'text-red-600'" class="font-mono font-black">+{{ formatNumber(rec?.amount) }}</span><button @click="form.records.splice(ridx, 1)" class="text-slate-200 hover:text-red-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>
+                            <div v-for="(rec, ridx) in form.records" :key="ridx" class="flex items-center justify-between bg-white p-4 rounded-[1.5rem] card-shadow border border-slate-50 overflow-hidden"><div class="flex items-center min-w-0 flex-1"><div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mr-3 text-[1.25em] shadow-inner">{{ getCategoryIcon(rec?.category) }}</div><div class="min-w-0 flex-1"><p class="text-sm font-black text-slate-800">{{ rec?.category }}</p><p v-if="rec?.note" class="text-[10px] text-slate-400 font-bold truncate pr-4">{{ rec?.note }}</p></div></div><div class="flex items-center gap-3"><span :class="rec?.type === 'income' ? 'text-red-600' : 'text-green-600'" class="font-mono font-black">{{ rec?.type === 'income' ? '+' : '-' }}{{ formatNumber(rec?.amount) }}</span><button @click="form.records.splice(ridx, 1)" class="text-slate-200 hover:text-red-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>
                         </div>
+
                         <div class="p-6 bg-slate-50/80 rounded-[2.5rem] border border-slate-200 space-y-6">
-                            <div class="flex justify-between items-center px-1"><span class="text-[10px] font-black text-slate-400 tracking-widest uppercase">{{ t('add_new_line') }}</span><div class="flex bg-white p-1 rounded-full shadow-sm text-[9px] font-black border border-slate-100"><button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-red-500 text-white shadow-md' : 'text-red-400'" class="px-6 py-2.5 transition-all">{{ t('expense_short') }}</button><button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-green-500 text-white shadow-md' : 'text-green-400'" class="px-6 py-2.5 transition-all">{{ t('income_short') }}</button></div></div>
+                            <div class="flex justify-between items-center px-1"><span class="text-[10px] font-black text-slate-400 tracking-widest uppercase">{{ t('add_new_line') }}</span><div class="flex bg-white p-1 rounded-full shadow-sm text-[9px] font-black border border-slate-100 overflow-hidden"><button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-green-600 text-white shadow-md' : 'text-slate-400'" class="px-6 py-2.5 transition-all">{{ t('expense_short') }}</button><button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-red-500 text-white shadow-md' : 'text-red-500'" class="px-6 py-2.5 transition-all">{{ t('income_short') }}</button></div></div>
                             <div class="grid grid-cols-4 gap-3">
                                 <button v-for="cat in currentCategories" :key="cat?.name" @click="newRecord.category = cat.name" @touchstart="startCategoryLongPress(cat)" @touchend="endCategoryLongPress" @mousedown="startCategoryLongPress(cat)" @mouseup="endCategoryLongPress" :class="newRecord.category === cat?.name ? 'ring-4 ring-indigo-100 bg-white scale-105 shadow-sm' : 'bg-white/40 opacity-70'" class="category-btn transition-all"><span class="text-xl mb-1">{{ cat?.icon }}</span><span class="text-[0.6em] font-black truncate w-full text-center">{{ cat?.name }}</span></button>
                                 <button @click="showAddCategory = true" class="category-btn bg-white/40 border border-dashed border-slate-300 active:scale-90 flex items-center justify-center"><i data-lucide="plus" class="w-6 h-6 text-slate-300"></i></button>
@@ -383,8 +393,9 @@
                         </div>
                     </div>
 
+                    <!-- 心情日誌 -->
                     <div v-if="editTab === 'diary'" class="space-y-8 pb-24 px-1 overflow-x-hidden">
-                        <div class="flex items-center justify-between bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100"><div class="flex items-center"><div class="w-12 h-12 rounded-2xl bg-white shadow-md flex items-center justify-center mr-4" :class="{'recording-pulse': isRecording}"><i data-lucide="mic" class="w-6 h-6" :class="isRecording ? 'text-red-500' : 'text-p'"></i></div><div class="flex flex-col"><span class="text-xs font-black">{{ isRecording ? t('recording') : (form.audio ? t('recorded') : t('voice_memo')) }}</span><span class="text-[0.6em] text-slate-400 font-bold uppercase tracking-widest">Voice Note</span></div></div><div class="flex gap-2"><button v-if="!isRecording" @click="startRecording" class="p-3 bg-p text-white rounded-xl shadow-lg active:scale-90 transition-all"><i data-lucide="play" class="w-4 h-4 fill-current"></i></button><button v-else @click="stopRecording" class="p-3 bg-red-500 text-white rounded-xl shadow-lg animate-pulse"><i data-lucide="square" class="w-4 h-4 fill-current"></i></button><button v-if="form.audio && !isRecording" @click="playAudio(form.audio)" class="p-3 bg-indigo-100 text-p rounded-xl active:scale-90"><i data-lucide="volume-2" class="w-4 h-4"></i></button></div></div>
+                        <div class="flex items-center justify-between bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100"><div class="flex items-center"><div class="w-12 h-12 rounded-2xl bg-white shadow-md flex items-center justify-center mr-4" :class="{'recording-pulse': isRecording}"><i data-lucide="mic" class="w-6 h-6" :class="isRecording ? 'text-red-500' : 'text-p'"></i></div><div class="flex flex-col"><span class="text-xs font-black">{{ isRecording ? t('recording') : (form.audio ? t('recorded') : t('voice_memo')) }}</span><span class="text-[0.6em] text-slate-400 font-bold uppercase tracking-widest">Voice Note</span></div></div><div class="flex gap-2"><button v-if="!isRecording" @click="startRecording" class="p-3 bg-p text-white rounded-xl shadow-lg active:scale-90 transition-all"><i data-lucide="play" class="w-4 h-4 fill-current text-white"></i></button><button v-else @click="stopRecording" class="p-3 bg-red-500 text-white rounded-xl shadow-lg animate-pulse"><i data-lucide="square" class="w-4 h-4 fill-current text-white"></i></button><button v-if="form.audio && !isRecording" @click="playAudio(form.audio)" class="p-3 bg-indigo-100 text-p rounded-xl active:scale-90"><i data-lucide="volume-2" class="w-4 h-4"></i></button></div></div>
                         <div class="space-y-4"><label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest px-1">{{ t('journal_feeling') }}</label><div class="flex gap-2.5 px-1 overflow-x-auto hide-scrollbar"><button v-for="f in ['😊','😔','😡','🤩','😴','💪','🍷','🏢','✈️']" :key="f" @click="form.feeling = f" :class="form.feeling === f ? 'scale-125 ring-2 ring-orange-200 bg-white' : 'opacity-40'" class="text-[1.5em] p-2 rounded-xl transition-all">{{ f }}</button></div></div>
                         <div class="space-y-4"><div class="flex justify-between items-center px-1"><label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ t('photo') }} ({{ form.photos?.length || 0 }}/10)</label><div class="relative p-3 bg-slate-100 rounded-2xl active:scale-90 transition-all"><i data-lucide="camera" class="w-5 h-5 text-slate-500"></i><input type="file" multiple @change="handleMultiPhotoUpload" class="absolute inset-0 opacity-0 cursor-pointer"></div></div><div v-if="form.photos?.length" class="flex gap-3 overflow-x-auto py-2 hide-scrollbar"><div v-for="(img, idx) in form.photos" :key="idx" class="relative shrink-0"><img :src="img" class="photo-thumb"><button @click="form.photos.splice(idx, 1)" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg"><i data-lucide="x" class="w-3 h-3 text-white"></i></button></div></div></div>
                         <div class="space-y-4"><div class="flex justify-between items-center px-1"><label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ t('location_map') }}</label><button @click="openGoogleMapsSearch" class="px-5 py-2 bg-indigo-50 text-p rounded-full text-[0.6em] font-black active:scale-90 transition-all border border-indigo-100">{{ t('search_on_map') }}</button></div><div class="flex gap-3"><input v-model="locationSearch" @keyup.enter="addLocation" :placeholder="t('location_ph')" class="flex-1 bg-slate-50 p-4 rounded-2xl text-[0.85em] font-bold outline-none border-2 border-transparent focus:border-p transition-all shadow-inner"><button @click="addLocation" class="bg-p text-white w-14 rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><i data-lucide="plus" class="w-6 h-6 text-white"></i></button></div><div class="space-y-2"><div v-for="(loc, lidx) in form.locations" :key="lidx" class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 card-shadow animate-in slide-in-from-bottom"><div class="flex items-center text-[0.85em] font-black text-indigo-700 cursor-pointer" @click="openGoogleMaps(loc?.name)"><i data-lucide="map-pin" class="w-4 h-4 mr-3 opacity-50"></i><span>{{ loc?.name }}</span></div><button @click="form.locations.splice(lidx, 1)" class="text-red-300 p-2 hover:text-red-500 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div></div>
@@ -394,7 +405,29 @@
             </div>
         </transition>
 
-        <!-- 彈窗組件 -->
+        <!-- 類別明細跳窗 (紅收綠支) -->
+        <transition name="fade">
+            <div v-if="showCategoryDetailModal" class="fixed inset-0 z-[120] flex items-end justify-center">
+                <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showCategoryDetailModal = false"></div>
+                <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[85vh] shadow-2xl modal-scrollable overflow-x-hidden" :class="{ 'modal-transition': !isDraggingModal }" :style="modalStyle" @touchstart="handleModalTouchStart" @touchmove="handleModalTouchMove" @touchend="handleModalTouchEnd">
+                    <button @click="showCategoryDetailModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-600 transition-colors z-[110]"><i data-lucide="x" class="w-6 h-6"></i></button>
+                    <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div>
+                    <div class="flex items-center gap-3 mb-6 px-2"><div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[1.5em]">{{ selectedCategoryForDetail?.icon || '?' }}</div><h2 class="text-[1.5em] font-black text-slate-800">{{ selectedCategoryForDetail?.name }} {{ t('new_record') }}</h2></div>
+                    <div class="space-y-4 pb-12">
+                        <div v-for="(item, idx) in categoryDetailRecords" :key="idx" @click="jumpToEdit(item.date, item.originalIndex)" class="flex justify-between items-center bg-slate-50 p-4 rounded-[1.5rem] cursor-pointer hover:bg-slate-100 transition-all animate-in slide-in-from-bottom">
+                            <div class="flex flex-col"><span class="text-[0.7em] font-bold text-slate-400 uppercase tracking-widest">{{ item.date }}</span><span class="text-[0.9em] font-black text-slate-700 truncate w-48">{{ item.record.note || '---' }}</span></div>
+                            <div class="flex items-center gap-4">
+                                <span class="font-mono font-black text-[1.1em]" :class="item.record.type==='income'?'text-red-500':'text-green-600'">{{ item.record.type==='income'?'+':'-' }}{{ formatNumber(item.record.amount) }}</span>
+                                <button @click.stop="deleteSpecificRecord(item.date, item.originalIndex)" class="text-slate-300 hover:text-red-500 transition-colors p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                        <div v-if="categoryDetailRecords.length === 0" class="text-center py-12 text-slate-300 font-bold">目前無此類別資料</div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- 其他彈窗 (分類、股票編輯)... -->
         <transition name="fade"><div v-if="showEditStockModal" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showEditStockModal = false"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-xl font-black mb-6 text-slate-800">編輯投資項目</h3><div class="space-y-4"><div class="p-4 bg-slate-50 rounded-2xl"><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">股票名稱</p><p class="font-black text-p">{{ editingStock?.name || '---' }}</p></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">股數</p><input v-model.number="editingStock.qty" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">成本</p><input v-model.number="editingStock.buyPrice" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div></div><div class="flex gap-4 pt-4"><button @click="showEditStockModal = false" class="flex-1 py-4 rounded-2xl font-black text-slate-400">{{ t('cancel') }}</button><button @click="confirmEditStock" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95">更新</button></div></div></div></div></transition>
         <transition name="fade"><div v-if="showAddCategory || showEditCategory" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeCategoryModal"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-[1.25em] font-black mb-8 text-slate-800">{{ showEditCategory ? t('edit_cat_title') : t('custom_cat_title') }}</h3><div class="space-y-8"><div class="grid grid-cols-5 gap-3 max-h-48 overflow-y-auto p-1 hide-scrollbar"><button v-for="ico in iconPool" :key="ico" @click="categoryForm.icon = ico" :class="categoryForm.icon === ico ? 'bg-indigo-100 ring-4 ring-indigo-200' : 'bg-slate-50'" class="text-[1.5em] p-3 rounded-2xl transition-all flex items-center justify-center">{{ ico }}</button></div><input v-model="categoryForm.name" type="text" class="w-full bg-slate-50 p-5 rounded-3xl outline-none font-bold border-none shadow-inner text-[0.9em]" :placeholder="t('cat_name_ph')"><div class="flex gap-4 pt-4"><button @click="closeCategoryModal" class="flex-1 py-5 rounded-2xl font-black text-slate-400 text-[0.8em]">{{ t('cancel') }}</button><button @click="confirmCategoryAction" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 text-[0.8em]">{{ t('confirm') }}</button></div></div></div></div></transition>
 
@@ -411,17 +444,17 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 createApp({
     setup() {
         const apiKey = ""; 
-        const version = "v1.0.0.3";
+        const version = "v1.0.0.7";
         
-        // 1. 核心狀態 (Ref) - 確保最先初始化
-        const today = new Date();
-        const currentYear = ref(today.getFullYear());
-        const currentMonth = ref(today.getMonth());
-        const selectedDay = ref(today.getDate());
+        // 核心狀態
+        const currentYear = ref(new Date().getFullYear());
+        const currentMonth = ref(new Date().getMonth());
+        const selectedDay = ref(new Date().getDate());
         const currentView = ref('ledger');
         const settings = ref({ lang: 'zh', themeColor: '#4f46e5', fontSize: 'medium' });
 
         const showAddModal = ref(false);
+        const showCategoryDetailModal = ref(false);
         const showYearPicker = ref(false);
         const showMonthPicker = ref(false);
         const showAddCategory = ref(false);
@@ -440,6 +473,8 @@ createApp({
         const modalDeltaY = ref(0);
         const isDraggingModal = ref(false);
         const editingStock = ref({ name: '', qty: 0, buyPrice: 0 });
+        const selectedCategoryForDetail = ref(null);
+        
         let editingStockIdx = -1;
         let mediaRecorder = null;
         let audioChunks = [];
@@ -454,10 +489,11 @@ createApp({
             { name: '其它', icon: '📦', type: 'expense' }
         ]);
 
-        const iconPool = ['🍲', '☕', '🍺', '🍰', '🚗', '🚲', '⛽', '✈️', '🛍️', '👕', '📱', '🎮', '🎬', '📚', '💊', '🩺', '🏠', '🛋️', '🐈', '🐶', '🌿', '💰', '🏦', '💼', '🎁', '🍷', '🚬', '⛪', '🚕', '🎠', '🎨', '🎻', '🛀', '🍣', '🍼', '👶', '🐾', '💈', '💇', '💄'];
+        const iconPool = ['🍲', '☕', '🍺', '🍰', '🚗', '🚲', '⛽', '✈️', '🛍️', '👕', '📱', '🎮', '🎬', '📚', '💊', '🩺', '🏠', '🛋️', '🐈', '🐶', '🌿', '💰', '🏦', '💼', '🎁', '🍷', '🚬', '⛪', '🚕', '🎠', '🎨', '🎻', '🏸', '🛀', '🍣', '🍼', '👶', '🐾', '💈', '💇', '💄'];
         const categoryForm = ref({ name: '', icon: '🍲' });
         let targetCategory = null;
 
+        // 預設資料
         const entries = ref({
             "2026-02-10": { diaryText: "UI 修復完成，ReferenceError 已排除，股市對接 TWSE。", feeling: '🤩', records: [{ type: 'expense', amount: 350, category: '餐飲', note: '高雄晚餐' }], photos: [], locations: [{name: "駁二"}] }
         });
@@ -466,7 +502,6 @@ createApp({
         const newRecord = ref({ type: 'expense', amount: null, category: '餐飲', note: '' });
         const newStock = ref({ name: '', qty: null, buyPrice: null });
 
-        // 2. 語系與翻譯
         const dictionary = {
             zh: { 
                 ledger: '帳本', stocks: '股市投資', charts: '分析統計', settings: '系統設置', add: '新增',
@@ -482,7 +517,7 @@ createApp({
                 voice_memo: '語音備忘', recorded: '錄音已存', recording: '錄音中', amount_ph: '金額', note_ph: '備註', add_to_list: '加入',
                 stat_btn: '智慧統計', no_diary_text: '尚未填寫今日日誌...', market_value: '市值', total_profit: '損益',
                 photo: '相片', location_map: '地點', search_on_map: '地圖', location_ph: '輸入地點...', add_new_line: '新增收支明細', journal_feeling: '感受',
-                edit_cat_title: '編輯類別', custom_cat_title: '自定義類別', cat_name_ph: '名稱'
+                edit_cat_title: '編輯類別', custom_cat_title: '自定義類別', cat_name_ph: '名稱', total: '合計', avg_day: '平均每天'
             },
             en: { 
                 ledger: 'Ledger', stocks: 'Stocks', charts: 'Analysis', settings: 'Settings', add: 'New',
@@ -498,7 +533,7 @@ createApp({
         };
         const t = (key) => dictionary[settings.value.lang][key] || key;
 
-        // 3. 計算屬性
+        // 計算屬性
         const yearRange = computed(() => { const y = new Date().getFullYear(); return Array.from({length: 12}, (_, i) => y - 5 + i); });
         const daysInMonth = computed(() => new Date(currentYear.value, currentMonth.value + 1, 0).getDate());
         const firstDayOfMonth = computed(() => new Date(currentYear.value, currentMonth.value, 1).getDay());
@@ -507,6 +542,7 @@ createApp({
         const selectedDateString = computed(() => `${currentYear.value}年 ${currentMonth.value + 1}月 ${selectedDay.value}日`);
         const currentCategories = computed(() => categories.value.filter(c => c.type === newRecord.value.type || !c.type));
 
+        // 色彩與數值計算 (紅收綠支)
         const dayTotalIncome = computed(() => (currentDayData.value?.records || []).filter(r => r.type === 'income').reduce((a, b) => a + (b.amount || 0), 0));
         const dayTotalExpense = computed(() => (currentDayData.value?.records || []).filter(r => r.type === 'expense').reduce((a, b) => a + (b.amount || 0), 0));
         const dayNetBalance = computed(() => dayTotalIncome.value - dayTotalExpense.value);
@@ -521,34 +557,60 @@ createApp({
         const stockTotalProfit = computed(() => stockPortfolio.value.reduce((s, x) => s + (((x.currentPrice || x.buyPrice) - x.buyPrice) * x.qty), 0));
         const netWorth = computed(() => allDataTotals.value.net + stockTotalValue.value);
 
-        const chartCategories = computed(() => {
-            const totals = {};
+        // 提取類別明細
+        const getRecordsByCategory = (catName) => {
+            const results = [];
             Object.keys(entries.value).forEach(dateKey => {
                 const [y, m] = dateKey.split('-').map(Number);
-                let match = chartRange.value === 'all' || (chartRange.value === 'year' && y === currentYear.value) || (chartRange.value === 'month' && m === currentMonth.value+1) || (chartRange.value === 'day' && d === selectedDay.value);
+                let match = chartRange.value === 'all' || (chartRange.value === 'year' && y === currentYear.value) || (chartRange.value === 'month' && m === currentMonth.value+1);
+                if (match) {
+                    const dailyRecs = entries.value[dateKey].records || [];
+                    dailyRecs.forEach((r, idx) => {
+                        if (r.category === catName && r.type === chartMode.value) {
+                            results.push({ date: dateKey, record: r, originalIndex: idx });
+                        }
+                    });
+                }
+            });
+            return results.sort((a, b) => new Date(b.date) - new Date(a.date));
+        };
+
+        const chartCategories = computed(() => {
+            const totals = {};
+            const categoryColors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#9B59B6', '#F39C12', '#1ABC9C', '#E67E22', '#3498DB', '#7F8C8D'];
+            Object.keys(entries.value).forEach(dateKey => {
+                const [y, m] = dateKey.split('-').map(Number);
+                let match = chartRange.value === 'all' || (chartRange.value === 'year' && y === currentYear.value) || (chartRange.value === 'month' && m === currentMonth.value+1);
                 if (match) (entries.value[dateKey].records || []).forEach(r => { if (r.type === chartMode.value) totals[r.category] = (totals[r.category] || 0) + r.amount; });
             });
-            return Object.keys(totals).map((n, i) => ({ name: n, value: totals[n], color: ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#ec4899', '#8b5cf6'][i % 6] }));
+            return Object.keys(totals).map(n => ({ name: n, value: totals[n] })).sort((a, b) => b.value - a.value).map((item, i) => ({ ...item, color: categoryColors[i % categoryColors.length] }));
         });
+
         const chartTotalValue = computed(() => chartCategories.value.reduce((a, b) => a + b.value, 0) || 0);
+        
+        // 修正：計算甜甜圈圖的漸層字串
         const pieGradient = computed(() => {
-            let offset = 0; const total = chartTotalValue.value || 1;
+            const total = chartTotalValue.value;
+            if (total <= 0) return '#f1f5f9';
+            let offset = 0;
             const parts = chartCategories.value.map(cat => {
                 const p = (cat.value / total) * 100;
                 const part = `${cat.color} ${offset}% ${offset + p}%`;
-                offset += p; return part;
+                offset += p; 
+                return part;
             });
-            return parts.length ? `conic-gradient(${parts.join(', ')})` : '#f1f5f9';
+            return `conic-gradient(${parts.join(', ')})`;
         });
 
-        // 4. Helper & Core Functions (定義在 Computed 之後，Return 之前)
+        const categoryDetailRecords = computed(() => selectedCategoryForDetail.value ? getRecordsByCategory(selectedCategoryForDetail.value.name) : []);
+
+        // 方法
         const updateIcons = () => nextTick(() => lucide.createIcons());
         const formatNumber = (num) => Math.floor(num || 0).toLocaleString();
         const showError = (msg) => { errorMsg.value = msg; setTimeout(() => { errorMsg.value = ''; }, 3000); };
         const getCategoryIcon = (n) => categories.value.find(c => c.name === n)?.icon || '❓';
         const getPhotoGridClass = (c) => c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48');
 
-        // 日期切換
         const changeYear = (delta) => currentYear.value += delta;
         const changeMonth = (delta) => { 
             let nm = currentMonth.value + delta;
@@ -556,7 +618,6 @@ createApp({
             currentMonth.value = nm;
         };
 
-        // 彈窗操作
         const openAddModal = (tab = 'diary') => {
             editTab.value = tab;
             form.value = entries.value[currentDayKey.value] ? JSON.parse(JSON.stringify(entries.value[currentDayKey.value])) : { records: [], diaryText: '', feeling: '😊', photos: [], locations: [], audio: null };
@@ -570,10 +631,32 @@ createApp({
             updateIcons();
         };
 
+        const jumpToEdit = (dateStr, index) => {
+            const [y, m, d] = dateStr.split('-').map(Number);
+            currentYear.value = y;
+            currentMonth.value = m - 1;
+            selectedDay.value = d;
+            showCategoryDetailModal.value = false;
+            openAddModal('finance');
+        };
+
+        const deleteSpecificRecord = (dateStr, index) => {
+            if (entries.value[dateStr]) {
+                entries.value[dateStr].records.splice(index, 1);
+                updateIcons();
+            }
+        };
+
+        const jumpToCategoryDetails = (catName) => {
+            const cat = categories.value.find(c => c.name === catName);
+            if (cat) selectedCategoryForDetail.value = cat;
+            showCategoryDetailModal.value = true;
+            updateIcons();
+        };
+
         const addNewRecord = () => { if (newRecord.value.amount) { form.value.records.unshift({ ...newRecord.value }); newRecord.value.amount = null; newRecord.value.note = ''; } };
         const addStockItem = () => { if (newStock.value.name) { stockPortfolio.value.push({ name: newStock.value.name, qty: newStock.value.qty || 0, buyPrice: newStock.value.buyPrice || 0, currentPrice: newStock.value.buyPrice || 0 }); newStock.value = { name: '', qty: null, buyPrice: null }; updateIcons(); } };
         
-        // 股市 AI 統計
         const updatePortfolioPrices = async () => {
             if (!stockPortfolio.value.length) return;
             isAILoading.value = true;
@@ -620,7 +703,6 @@ createApp({
         };
         const selectStockSuggestion = (sug) => { newStock.value.name = `${sug.name}(${sug.id})`; stockSuggestions.value = []; };
 
-        // 長按與編輯
         const startStockLongPress = (stk, idx) => { longPressTimer = setTimeout(() => { editingStock.value = { ...stk }; editingStockIdx = idx; showEditStockModal.value = true; }, 800); };
         const endStockLongPress = () => clearTimeout(longPressTimer);
         const confirmEditStock = () => { if (editingStockIdx !== -1) stockPortfolio.value[editingStockIdx] = { ...editingStock.value }; showEditStockModal.value = false; };
@@ -629,7 +711,6 @@ createApp({
         const closeCategoryModal = () => { showAddCategory.value = false; showEditCategory.value = false; categoryForm.value = { name: '', icon: '🍲' }; };
         const confirmCategoryAction = () => { if (!categoryForm.value.name.trim()) return; if (showEditCategory.value && targetCategory) { targetCategory.name = categoryForm.value.name.trim(); targetCategory.icon = categoryForm.value.icon; } else { categories.value.push({ name: categoryForm.value.name.trim(), icon: categoryForm.value.icon, type: newRecord.value.type }); } closeCategoryModal(); };
 
-        // 多媒體處理
         const handleMultiPhotoUpload = (e) => { Array.from(e.target.files).slice(0, 10).forEach(file => { const reader = new FileReader(); reader.onload = (f) => form.value.photos.push(f.target.result); reader.readAsDataURL(file); }); };
         const addLocation = () => { if (locationSearch.value.trim()) { form.value.locations.push({ name: locationSearch.value.trim() }); locationSearch.value = ''; updateIcons(); } };
         const openGoogleMapsSearch = () => window.open(`https://www.google.com/maps`, '_blank');
@@ -638,22 +719,23 @@ createApp({
         const stopRecording = () => { if (mediaRecorder) { mediaRecorder.stop(); isRecording.value = false; } };
         const playAudio = (u) => new Audio(u).play();
 
-        // 手勢操作
         const handleModalTouchStart = (e) => { if (e.currentTarget.scrollTop <= 0) { touchYStart.value = e.touches[0].clientY; isDraggingModal.value = true; } };
         const handleModalTouchMove = (e) => { if (isDraggingModal.value) { const d = e.touches[0].clientY - touchYStart.value; if (d > 0) { modalDeltaY.value = d; if (e.cancelable) e.preventDefault(); } else isDraggingModal.value = false; } };
-        const handleModalTouchEnd = () => { if (modalDeltaY.value > 150) showAddModal.value = false; modalDeltaY.value = 0; isDraggingModal.value = false; };
+        const handleModalTouchEnd = () => { if (modalDeltaY.value > 150) { showAddModal.value = false; showCategoryDetailModal.value = false; } modalDeltaY.value = 0; isDraggingModal.value = false; };
         const modalStyle = computed(() => { if (!isDraggingModal.value && modalDeltaY.value === 0) return {}; return { transform: `translateY(${modalDeltaY.value}px) scale(${Math.max(0.85, 1 - modalDeltaY.value/2500)})`, opacity: Math.max(0.7, 1 - modalDeltaY.value/1000), transformOrigin: 'bottom center' }; });
 
         onMounted(() => updateIcons());
-        watch([currentView, showAddModal, settings, editTab, chartRange, chartMode, showYearPicker, showMonthPicker, showAddCategory, showEditCategory, showEditStockModal], () => updateIcons());
+        watch([currentView, showAddModal, settings, editTab, chartRange, chartMode, showCategoryDetailModal], () => updateIcons());
 
         return {
-            currentView, showAddModal, showYearPicker, showMonthPicker, showAddCategory, showEditCategory, showEditStockModal, yearRange, chartRange, chartMode, t, settings, currentYear, currentMonth, selectedDay, daysInMonth, firstDayOfMonth, selectedDateString, version, stockSuggestions, debouncedSearch,
+            currentView, showAddModal, showYearPicker, showMonthPicker, showAddCategory, showEditCategory, showEditStockModal, showCategoryDetailModal,
+            yearRange, chartRange, chartMode, t, settings, currentYear, currentMonth, selectedDay, daysInMonth, firstDayOfMonth, selectedDateString, version, stockSuggestions, debouncedSearch,
             getDayEntries: (d) => { const k = `${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const e = entries.value[k]; return { hasDiary: !!(e?.diaryText || e?.photos?.length || e?.audio), hasFinance: !!(e?.records?.length) }; },
             form, saveRecord, openAddModal, allDataTotals, formatNumber, chartCategories, chartTotalValue, pieGradient, dayNetBalance, dayTotalIncome, dayTotalExpense, editTab, newRecord, currentCategories, errorMsg, editingStock, addNewRecord, getCategoryIcon, iconPool, categoryForm, confirmCategoryAction, closeCategoryModal, startCategoryLongPress, endCategoryLongPress, startStockLongPress, endStockLongPress, confirmEditStock,
             stockPortfolio, newStock, addStockItem, updatePortfolioPrices, stockTotalValue, stockTotalProfit, isAILoading, lastSyncTime,
             handleModalTouchStart, handleModalTouchMove, handleModalTouchEnd, isDraggingModal, modalStyle,
-            handleMultiPhotoUpload, addLocation, locationSearch, openGoogleMaps, openGoogleMapsSearch, startRecording, stopRecording, playAudio, isRecording, selectStockSuggestion, netWorth, getPhotoGridClass, changeYear, changeMonth, currentDayData
+            handleMultiPhotoUpload, addLocation, locationSearch, openGoogleMaps, openGoogleMapsSearch, startRecording, stopRecording, playAudio, isRecording, selectStockSuggestion, netWorth, getPhotoGridClass, changeYear, changeMonth, currentDayData,
+            selectedCategoryForDetail, categoryDetailRecords, jumpToCategoryDetails, jumpToEdit, deleteSpecificRecord
         };
     }
 }).mount('#app');
