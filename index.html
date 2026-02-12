@@ -150,9 +150,9 @@
         <p class="text-[10px] font-black text-slate-400 tracking-widest uppercase">Cloud Syncing...</p>
     </div>
 
-    <!-- 未配置 Firebase 警告 (若使用者未填入配置) -->
-    <div v-if="firebaseConfigMissing" class="absolute top-0 left-0 right-0 z-[210] bg-red-600 text-white p-4 text-center text-xs font-bold">
-        請在程式碼中填入您的 Firebase 設定以啟用雲端功能
+    <!-- 未配置 Gemini Key 警告 (若使用者未填入) -->
+    <div v-if="geminiKeyMissing" class="absolute top-0 left-0 right-0 z-[210] bg-orange-500 text-white p-4 text-center text-xs font-bold shadow-xl">
+        股市功能需設定 Gemini API Key (請至程式碼第 1358 行填入)
     </div>
 
     <div :class="['w-full sm:max-w-md h-full bg-slate-50 shadow-2xl relative flex flex-col overflow-hidden transition-all duration-300', 'app-font-' + settings.fontSize]">
@@ -465,7 +465,7 @@
             </div>
         </transition>
 
-        <!-- 編輯/新增視窗 (新增：左右滑動支援) -->
+        <!-- 編輯/新增視窗 -->
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
                 <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
@@ -483,7 +483,6 @@
                     
                     <div class="flex justify-between items-center mb-6 px-1">
                         <div class="flex items-center gap-2">
-                             <!-- 加入左右切換的視覺提示 (可選) -->
                              <button @click="changeDate(-1)" class="p-1 text-slate-300 hover:text-p"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
                              <h2 class="text-[1.3em] font-black text-slate-800">{{ currentMonth+1 }}/{{ selectedDay }} {{ t('new_record') }}</h2>
                              <button @click="changeDate(1)" class="p-1 text-slate-300 hover:text-p"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
@@ -516,7 +515,7 @@
             </div>
         </transition>
 
-        <!-- 明細跳窗 -->
+        <!-- 明細與類別跳窗 (保持不變) -->
         <transition name="fade"><div v-if="showCategoryDetailModal" class="fixed inset-0 z-[120] flex items-end justify-center"><div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showCategoryDetailModal = false"></div><div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[85vh] shadow-2xl modal-scrollable overflow-x-hidden" :class="{ 'modal-transition': !isDraggingModal }" :style="modalStyle" @touchstart="handleModalTouchStart" @touchmove="handleModalTouchMove" @touchend="handleModalTouchEnd"><button @click="showCategoryDetailModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-600 transition-colors z-[110]"><i data-lucide="x" class="w-6 h-6"></i></button><div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div><div class="flex items-center gap-3 mb-6 px-2"><div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[1.5em]">{{ selectedCategoryForDetail?.icon || '?' }}</div><h2 class="text-[1.5em] font-black text-slate-800">{{ selectedCategoryForDetail?.name }} {{ t('new_record') }}</h2></div><div class="space-y-4 pb-12"><div v-for="(item, idx) in categoryDetailRecords" :key="idx" @click="jumpToEdit(item.date, item.originalIndex)" class="flex justify-between items-center bg-slate-50 p-4 rounded-[1.5rem] cursor-pointer hover:bg-slate-100 transition-all"><div class="flex flex-col"><span class="text-[0.7em] font-bold text-slate-400 uppercase tracking-widest">{{ item.date }}</span><span class="text-[0.9em] font-black text-slate-700 truncate w-48">{{ item.record.note || '---' }}</span></div><div class="flex items-center gap-4"><span class="font-mono font-black text-[1.1em]" :class="item.record.type==='income'?'text-red-500':'text-green-600'">{{ item.record.type==='income'?'+':'-' }}{{ formatNumber(item.record.amount) }}</span><button @click.stop="deleteSpecificRecord(item.date, item.originalIndex)" class="text-slate-300 hover:text-red-500 transition-colors p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div><div v-if="categoryDetailRecords.length === 0" class="text-center py-12 text-slate-300 font-bold">目前無此類別資料</div></div></div></div></transition>
         <transition name="fade"><div v-if="showEditStockModal" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showEditStockModal = false"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-xl font-black mb-6 text-slate-800">編輯投資項目</h3><div class="space-y-4"><div class="p-4 bg-slate-50 rounded-2xl"><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">股票名稱</p><p class="font-black text-p">{{ editingStock?.name || '---' }}</p></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">股數</p><input v-model.number="editingStock.qty" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">成本</p><input v-model.number="editingStock.buyPrice" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div></div><div class="flex gap-4 pt-4"><button @click="showEditStockModal = false" class="flex-1 py-4 rounded-2xl font-black text-slate-400">{{ t('cancel') }}</button><button @click="confirmEditStock" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95">更新</button></div></div></div></div></transition>
         <transition name="fade"><div v-if="showAddCategory || showEditCategory" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeCategoryModal"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-[1.25em] font-black mb-8 text-slate-800">{{ showEditCategory ? t('edit_cat_title') : t('custom_cat_title') }}</h3><div class="space-y-8"><div class="grid grid-cols-5 gap-3 max-h-48 overflow-y-auto p-1 hide-scrollbar"><button v-for="ico in iconPool" :key="ico" @click="categoryForm.icon = ico" :class="categoryForm.icon === ico ? 'bg-indigo-100 ring-4 ring-indigo-200' : 'bg-slate-50'" class="text-[1.5em] p-3 rounded-2xl transition-all flex items-center justify-center">{{ ico }}</button></div><input v-model="categoryForm.name" type="text" class="w-full bg-slate-50 p-5 rounded-3xl outline-none font-bold border-none shadow-inner text-[0.9em]" :placeholder="t('cat_name_ph')"><div class="flex gap-4 pt-4"><button @click="closeCategoryModal" class="flex-1 py-5 rounded-2xl font-black text-slate-400 text-[0.8em]">{{ t('cancel') }}</button><button @click="confirmCategoryAction" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 text-[0.8em]">{{ t('confirm') }}</button></div></div></div></div></transition>
@@ -533,50 +532,46 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 
 createApp({
     setup() {
-        // --- 1. Phase 1: 常數與 Firebase 初始化 ---
-        const appVersion = "v1.2.8"; // 移除括號後的簡約版本號
+        const appVersion = "v1.2.9";
         
-        // 嘗試讀取環境變數，若無則使用使用者自定義配置
-        let firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-        let firebaseConfig;
-        let firebaseConfigMissing = false;
-
-        if (firebaseConfigStr) {
-            firebaseConfig = JSON.parse(firebaseConfigStr);
-        } else {
-            // Placeholder: 在 GitHub 等環境部署時，請填入您的 Firebase 設定
-            // 這裡預設為空物件，避免報錯，但會跳出 UI 提示
-            firebaseConfig = {}; 
-            firebaseConfigMissing = true;
-        }
+        // Firebase Config (已整合使用者設定)
+        const firebaseConfig = {
+          apiKey: "AIzaSyAfP3W8GzVNxzaJAYE_bBjFuQEbsMff8MY",
+          authDomain: "lifetrack-f8c30.firebaseapp.com",
+          projectId: "lifetrack-f8c30",
+          storageBucket: "lifetrack-f8c30.firebasestorage.app",
+          messagingSenderId: "439295213397",
+          appId: "1:439295213397:web:f939cc43e08435fbb2b9dc",
+          measurementId: "G-JH7HZ7WMXF"
+        };
+        const firebaseConfigMissing = false; // 已填入設定，故設為 false
 
         const fb = window.FirebaseSDK;
         let app, auth, db;
         
         try {
-            if (!firebaseConfigMissing) {
-                app = fb.initializeApp(firebaseConfig);
-                auth = fb.getAuth(app);
-                db = fb.getFirestore(app);
-            }
+            app = fb.initializeApp(firebaseConfig);
+            auth = fb.getAuth(app);
+            db = fb.getFirestore(app);
         } catch (e) {
             console.error("Firebase Init Failed:", e);
         }
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'lifetrack-pro';
-        // 請在部署時將此字串替換為您的實際 Key，或直接在此填入
-        const apiKey = "YOUR_GEMINI_API_KEY"; 
+        // 請在此填入您的 Gemini API Key (雙引號內)
+        const apiKey = "AIzaSyAFvJiEHCa3kfvTZQ57o_4vgRsT8F5rnKE"; 
 
-        // --- 2. Phase 2: 響應式狀態 (Refs) ---
+        // --- 核心狀態 ---
         const currentYear = ref(new Date().getFullYear());
         const currentMonth = ref(new Date().getMonth());
         const selectedDay = ref(new Date().getDate());
         const currentView = ref('ledger');
         const settings = ref({ lang: 'zh', themeColor: '#4f46e5', fontSize: 'medium' });
         const user = ref(null);
-        const isGlobalLoading = ref(true); // 預設載入中
+        const isGlobalLoading = ref(true);
         const lastSyncTime = ref('');
         const errorMsg = ref('');
+        const geminiKeyMissing = computed(() => !apiKey || apiKey === "YOUR_GEMINI_API_KEY");
 
         const showAddModal = ref(false);
         const showCategoryDetailModal = ref(false);
@@ -664,7 +659,7 @@ createApp({
             }
         };
 
-        // --- 3. Phase 3: 核心功能函式 (Functions) ---
+        // --- 核心功能函式 ---
         function t(key) {
             const lang = settings.value.lang || 'zh';
             return dictionary[lang]?.[key] || dictionary['zh'][key] || key;
@@ -700,15 +695,15 @@ createApp({
         }
 
         async function syncToCloud() {
-            if (!auth || !user.value) return;
+            if (!user.value) return;
             try {
                 const stateDoc = fb.doc(db, 'artifacts', appId, 'users', user.value.uid, 'appData', 'globalState');
                 await fb.setDoc(stateDoc, { entries: JSON.stringify(entries.value), stockPortfolio: stockPortfolio.value, categories: categories.value, settings: settings.value, lastSync: Date.now() });
-            } catch (e) { console.error("Cloud Sync Failed", e); }
+            } catch (e) { console.error(e); }
         }
 
         async function loadFromCloud() {
-            if (!auth || !user.value) return;
+            if (!user.value) return;
             isGlobalLoading.value = true;
             try {
                 const stateDoc = fb.doc(db, 'artifacts', appId, 'users', user.value.uid, 'appData', 'globalState');
@@ -725,7 +720,6 @@ createApp({
         }
 
         async function handleGoogleLogin() {
-            if (!auth) { showError("Firebase 未初始化"); return; }
             showLoginModal.value = false;
             setTimeout(async () => {
                 isGlobalLoading.value = true;
@@ -734,19 +728,13 @@ createApp({
                     provider.setCustomParameters({ prompt: 'select_account' });
                     await fb.signInWithPopup(auth, provider);
                 } catch (e) {
-                    if (e.code === 'auth/popup-blocked') {
-                        showError("登入視窗被攔截，請允許開啟彈窗");
-                    } else if (e.code === 'auth/popup-closed-by-user') {
-                        // User cancelled
-                    } else {
-                        showError("連結 Google 帳號失敗");
-                    }
+                    if (e.code === 'auth/popup-blocked') showError("登入視窗被攔截");
+                    else if (e.code !== 'auth/popup-closed-by-user') showError("連結失敗: " + e.message);
                 } finally { isGlobalLoading.value = false; }
             }, 100);
         }
 
         async function handleLogout() {
-            if (!auth) return;
             await fb.signOut(auth);
             user.value = null; entries.value = {}; stockPortfolio.value = [];
         }
@@ -783,35 +771,37 @@ createApp({
 
         async function updatePortfolioPrices() {
             if (!stockPortfolio.value.length) return;
-            // 優先讀取使用者輸入的 Key，若無則嘗試使用預設
-            const key = apiKey || "YOUR_GEMINI_API_KEY"; 
-            if (key === "YOUR_GEMINI_API_KEY") { showError("請在程式碼中填入 Gemini API Key"); return; }
+            if (geminiKeyMissing.value) { showError("請在程式碼中填入 Gemini API Key"); return; }
             
             isAILoading.value = true;
             try {
                 const syms = stockPortfolio.value.map(s => s.name).join(', ');
-                const sys = `你是一位專業的台股助理。搜尋 Google 並參考 Yahoo 股市台灣 或 TWSE/TPEx 官方資訊。
+                const sys = `你是一位專業的台股助理。請搜尋 Google 並參考 Yahoo 股市台灣 或 TWSE/TPEx 官方資訊。
                 目標：取得這幾檔股票的最新『成交價』(Trade Price)：${syms}。
                 格式要求：僅回傳 JSON 例如 {"2330": 1050, "6547": 155}。注意區分上市與上櫃股碼。`;
 
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: `取得台股即時成交價：${syms}` }] }], systemInstruction: { parts: [{ text: sys }] }, tools: [{ "google_search": {} }] })
                 });
                 const d = await res.json();
                 const text = d.candidates?.[0]?.content?.parts?.[0]?.text;
-                const match = text?.match(/\{[\s\S]*\}/);
+                // 去除可能存在的 markdown 標記
+                const jsonStr = text?.replace(/```json|```/g, '').trim();
+                const match = jsonStr?.match(/\{[\s\S]*\}/);
+                
                 if (match) {
                     const priceMap = JSON.parse(match[0]);
                     stockPortfolio.value.forEach(stk => {
+                        // 模糊匹配：嘗試用名稱或代號找對應價格
                         const id = stk.name.match(/\d{4,}/)?.[0] || stk.name;
                         const matchKey = Object.keys(priceMap).find(k => k.includes(id) || id.includes(k));
                         if (matchKey) stk.currentPrice = Number(priceMap[matchKey]);
                     });
                     lastSyncTime.value = new Date().toLocaleTimeString(); await syncToCloud();
                 } else { showError("行情暫時無法更新"); }
-            } catch (e) { showError("行情獲取失敗: " + e.message); }
+            } catch (e) { showError("行情獲取失敗"); }
             isAILoading.value = false;
         }
 
@@ -827,21 +817,20 @@ createApp({
         }
 
         function debouncedSearch() {
-            // 優先讀取使用者輸入的 Key
-            const key = apiKey || "YOUR_GEMINI_API_KEY";
-            if(key === "YOUR_GEMINI_API_KEY") return;
-            
+            if(geminiKeyMissing.value) return;
             clearTimeout(searchTimeout);
             if (!newStock.value.name) { stockSuggestions.value = []; return; }
             searchTimeout = setTimeout(async () => {
                 try {
                     const sys = `Lookup TWSE codes. Return JSON: [{"name": "台積電", "id": "2330"}]. Key: ${newStock.value.name}`;
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ contents: [{ parts: [{ text: `Search ${newStock.value.name}` }] }], systemInstruction: { parts: [{ text: sys }] }, tools: [{ "google_search": {} }] })
                     });
                     const d = await res.json();
-                    const match = d.candidates?.[0]?.content?.parts?.[0]?.text?.match(/\[[\s\S]*\]/);
+                    const text = d.candidates?.[0]?.content?.parts?.[0]?.text;
+                    const jsonStr = text?.replace(/```json|```/g, '').trim();
+                    const match = jsonStr?.match(/\[[\s\S]*\]/);
                     if (match) stockSuggestions.value = JSON.parse(match[0]);
                 } catch (e) {}
             }, 800);
@@ -993,7 +982,7 @@ createApp({
             handleMultiPhotoUpload, addLocation, locationSearch, openGoogleMaps, openGoogleMapsSearch, startRecording, stopRecording, playAudio, isRecording, selectStockSuggestion, getPhotoGridClass, changeYear, changeMonth, currentDayData,
             selectedCategoryForDetail, categoryDetailRecords, jumpToCategoryDetails, jumpToEdit, deleteSpecificRecord,
             user, handleGoogleLogin, handleLogout, isGlobalLoading, changeYearTo, changeMonthTo,
-            changeDate, loadFormData, firebaseConfigMissing
+            changeDate, loadFormData, firebaseConfigMissing, geminiKeyMissing
         };
     }
 }).mount('#app');
