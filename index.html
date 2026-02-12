@@ -150,9 +150,9 @@
         <p class="text-[10px] font-black text-slate-400 tracking-widest uppercase">Cloud Syncing...</p>
     </div>
 
-    <!-- 未配置 Gemini Key 警告 (若使用者未填入) -->
-    <div v-if="geminiKeyMissing" class="absolute top-0 left-0 right-0 z-[210] bg-orange-500 text-white p-4 text-center text-xs font-bold shadow-xl">
-        股市功能需設定 Gemini API Key (請至程式碼第 1358 行填入)
+    <!-- 未配置 Firebase 警告 (若使用者未填入配置) -->
+    <div v-if="firebaseConfigMissing" class="absolute top-0 left-0 right-0 z-[210] bg-red-600 text-white p-4 text-center text-xs font-bold shadow-xl">
+        請編輯程式碼，填入您的 Firebase 設定以啟用雲端功能
     </div>
 
     <div :class="['w-full sm:max-w-md h-full bg-slate-50 shadow-2xl relative flex flex-col overflow-hidden transition-all duration-300', 'app-font-' + settings.fontSize]">
@@ -223,7 +223,7 @@
                 </div>
             </div>
 
-            <!-- 分頁：帳本 (台灣習慣：紅收綠支) -->
+            <!-- 分頁：帳本 -->
             <section v-if="currentView === 'ledger'" class="animate-in fade-in duration-300">
                 <div class="p-4 bg-white border-b sticky top-0 z-10 shadow-sm">
                     <div class="calendar-grid text-center text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">
@@ -465,7 +465,7 @@
             </div>
         </transition>
 
-        <!-- 編輯/新增視窗 -->
+        <!-- 編輯/新增視窗 (新增：左右滑動支援) -->
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
                 <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
@@ -483,9 +483,9 @@
                     
                     <div class="flex justify-between items-center mb-6 px-1">
                         <div class="flex items-center gap-2">
-                             <button @click="changeDate(-1)" class="p-1 text-slate-300 hover:text-p"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                             <button @click="changeDate(-1)" class="p-1 text-slate-300 hover:text-p active:scale-90 transition-transform"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
                              <h2 class="text-[1.3em] font-black text-slate-800">{{ currentMonth+1 }}/{{ selectedDay }} {{ t('new_record') }}</h2>
-                             <button @click="changeDate(1)" class="p-1 text-slate-300 hover:text-p"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                             <button @click="changeDate(1)" class="p-1 text-slate-300 hover:text-p active:scale-90 transition-transform"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                         </div>
                         <button @click="saveRecord" :style="{ backgroundColor: settings.themeColor }" class="text-white px-10 py-3 rounded-full font-black shadow-xl active:scale-95 transition-all text-[0.8em] mr-8">{{ t('save') }}</button>
                     </div>
@@ -515,7 +515,7 @@
             </div>
         </transition>
 
-        <!-- 明細與類別跳窗 (保持不變) -->
+        <!-- 明細跳窗 -->
         <transition name="fade"><div v-if="showCategoryDetailModal" class="fixed inset-0 z-[120] flex items-end justify-center"><div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showCategoryDetailModal = false"></div><div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[85vh] shadow-2xl modal-scrollable overflow-x-hidden" :class="{ 'modal-transition': !isDraggingModal }" :style="modalStyle" @touchstart="handleModalTouchStart" @touchmove="handleModalTouchMove" @touchend="handleModalTouchEnd"><button @click="showCategoryDetailModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-600 transition-colors z-[110]"><i data-lucide="x" class="w-6 h-6"></i></button><div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div><div class="flex items-center gap-3 mb-6 px-2"><div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[1.5em]">{{ selectedCategoryForDetail?.icon || '?' }}</div><h2 class="text-[1.5em] font-black text-slate-800">{{ selectedCategoryForDetail?.name }} {{ t('new_record') }}</h2></div><div class="space-y-4 pb-12"><div v-for="(item, idx) in categoryDetailRecords" :key="idx" @click="jumpToEdit(item.date, item.originalIndex)" class="flex justify-between items-center bg-slate-50 p-4 rounded-[1.5rem] cursor-pointer hover:bg-slate-100 transition-all"><div class="flex flex-col"><span class="text-[0.7em] font-bold text-slate-400 uppercase tracking-widest">{{ item.date }}</span><span class="text-[0.9em] font-black text-slate-700 truncate w-48">{{ item.record.note || '---' }}</span></div><div class="flex items-center gap-4"><span class="font-mono font-black text-[1.1em]" :class="item.record.type==='income'?'text-red-500':'text-green-600'">{{ item.record.type==='income'?'+':'-' }}{{ formatNumber(item.record.amount) }}</span><button @click.stop="deleteSpecificRecord(item.date, item.originalIndex)" class="text-slate-300 hover:text-red-500 transition-colors p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div><div v-if="categoryDetailRecords.length === 0" class="text-center py-12 text-slate-300 font-bold">目前無此類別資料</div></div></div></div></transition>
         <transition name="fade"><div v-if="showEditStockModal" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showEditStockModal = false"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-xl font-black mb-6 text-slate-800">編輯投資項目</h3><div class="space-y-4"><div class="p-4 bg-slate-50 rounded-2xl"><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">股票名稱</p><p class="font-black text-p">{{ editingStock?.name || '---' }}</p></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">股數</p><input v-model.number="editingStock.qty" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">成本</p><input v-model.number="editingStock.buyPrice" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div></div><div class="flex gap-4 pt-4"><button @click="showEditStockModal = false" class="flex-1 py-4 rounded-2xl font-black text-slate-400">{{ t('cancel') }}</button><button @click="confirmEditStock" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95">更新</button></div></div></div></div></transition>
         <transition name="fade"><div v-if="showAddCategory || showEditCategory" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeCategoryModal"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-[1.25em] font-black mb-8 text-slate-800">{{ showEditCategory ? t('edit_cat_title') : t('custom_cat_title') }}</h3><div class="space-y-8"><div class="grid grid-cols-5 gap-3 max-h-48 overflow-y-auto p-1 hide-scrollbar"><button v-for="ico in iconPool" :key="ico" @click="categoryForm.icon = ico" :class="categoryForm.icon === ico ? 'bg-indigo-100 ring-4 ring-indigo-200' : 'bg-slate-50'" class="text-[1.5em] p-3 rounded-2xl transition-all flex items-center justify-center">{{ ico }}</button></div><input v-model="categoryForm.name" type="text" class="w-full bg-slate-50 p-5 rounded-3xl outline-none font-bold border-none shadow-inner text-[0.9em]" :placeholder="t('cat_name_ph')"><div class="flex gap-4 pt-4"><button @click="closeCategoryModal" class="flex-1 py-5 rounded-2xl font-black text-slate-400 text-[0.8em]">{{ t('cancel') }}</button><button @click="confirmCategoryAction" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 text-[0.8em]">{{ t('confirm') }}</button></div></div></div></div></transition>
@@ -532,36 +532,43 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 
 createApp({
     setup() {
-        const appVersion = "v1.2.9";
+        // --- 1. Phase 1: 常數與 Firebase 初始化 ---
+        const appVersion = "v1.3.4";
         
-        // Firebase Config (已整合使用者設定)
-        const firebaseConfig = {
-          apiKey: "AIzaSyAfP3W8GzVNxzaJAYE_bBjFuQEbsMff8MY",
-          authDomain: "lifetrack-f8c30.firebaseapp.com",
-          projectId: "lifetrack-f8c30",
-          storageBucket: "lifetrack-f8c30.firebasestorage.app",
-          messagingSenderId: "439295213397",
-          appId: "1:439295213397:web:f939cc43e08435fbb2b9dc",
-          measurementId: "G-JH7HZ7WMXF"
-        };
-        const firebaseConfigMissing = false; // 已填入設定，故設為 false
+        let firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        let firebaseConfig;
+        let firebaseConfigMissing = false;
+
+        if (firebaseConfigStr) {
+            firebaseConfig = JSON.parse(firebaseConfigStr);
+        } else {
+            firebaseConfig = {
+                apiKey: "AIzaSyAfP3W8GzVNxzaJAYE_bBjFuQEbsMff8MY",
+                authDomain: "lifetrack-f8c30.firebaseapp.com",
+                projectId: "lifetrack-f8c30",
+                storageBucket: "lifetrack-f8c30.firebasestorage.app",
+                messagingSenderId: "439295213397",
+                appId: "1:439295213397:web:f939cc43e08435fbb2b9dc",
+                measurementId: "G-JH7HZ7WMXF"
+            };
+        }
 
         const fb = window.FirebaseSDK;
         let app, auth, db;
         
         try {
-            app = fb.initializeApp(firebaseConfig);
-            auth = fb.getAuth(app);
-            db = fb.getFirestore(app);
+            if (fb && !firebaseConfigMissing) {
+                app = fb.initializeApp(firebaseConfig);
+                auth = fb.getAuth(app);
+                db = fb.getFirestore(app);
+            }
         } catch (e) {
             console.error("Firebase Init Failed:", e);
         }
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'lifetrack-pro';
-        // 請在此填入您的 Gemini API Key (雙引號內)
-        const apiKey = "AIzaSyAFvJiEHCa3kfvTZQ57o_4vgRsT8F5rnKE"; 
 
-        // --- 核心狀態 ---
+        // --- 2. Phase 2: 響應式狀態 (Refs) ---
         const currentYear = ref(new Date().getFullYear());
         const currentMonth = ref(new Date().getMonth());
         const selectedDay = ref(new Date().getDate());
@@ -571,7 +578,6 @@ createApp({
         const isGlobalLoading = ref(true);
         const lastSyncTime = ref('');
         const errorMsg = ref('');
-        const geminiKeyMissing = computed(() => !apiKey || apiKey === "YOUR_GEMINI_API_KEY");
 
         const showAddModal = ref(false);
         const showCategoryDetailModal = ref(false);
@@ -620,6 +626,10 @@ createApp({
         const newRecord = ref({ type: 'expense', amount: null, category: '餐飲', note: '' });
         const newStock = ref({ name: '', qty: null, buyPrice: null });
 
+        // 儲存台股中文對照清單
+        const cachedStockList = ref([]);
+        const isStockListLoading = ref(false);
+
         const dictionary = {
             zh: { 
                 ledger: '帳本', stocks: '股市投資', charts: '分析統計', settings: '系統設置', add: '新增',
@@ -659,7 +669,7 @@ createApp({
             }
         };
 
-        // --- 核心功能函式 ---
+        // --- 3. Phase 3: 核心功能函式 (Functions) ---
         function t(key) {
             const lang = settings.value.lang || 'zh';
             return dictionary[lang]?.[key] || dictionary['zh'][key] || key;
@@ -671,6 +681,38 @@ createApp({
         function getCategoryIcon(n) { return categories.value.find(c => c.name === n)?.icon || '❓'; }
         function getPhotoGridClass(c) { return c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48'); }
 
+        // 多重代理保護機制
+        async function safeFetch(url, isAllOriginsJson = false) {
+            const proxies = [
+                u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+                u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+                u => `https://corsproxy.io/?${encodeURIComponent(u)}`
+            ];
+            
+            for (const p of proxies) {
+                try {
+                    const proxyUrl = p(url);
+                    const res = await fetch(proxyUrl);
+                    if (!res.ok) continue;
+                    
+                    if (proxyUrl.includes('allorigins')) {
+                        const wrapper = await res.json();
+                        if (isAllOriginsJson) {
+                            const parsed = JSON.parse(wrapper.contents);
+                            if (!parsed) throw new Error('Empty contents');
+                            return parsed;
+                        }
+                        return wrapper.contents;
+                    } else {
+                        return await res.json();
+                    }
+                } catch(e) {
+                    console.warn('Proxy fallback triggered');
+                }
+            }
+            throw new Error('All proxies failed');
+        }
+
         function changeYear(delta) { currentYear.value += delta; }
         function changeMonth(delta) { 
             let nm = currentMonth.value + delta;
@@ -680,6 +722,37 @@ createApp({
         function changeYearTo(y) { currentYear.value = y; showYearPicker.value = false; showMonthPicker.value = true; }
         function changeMonthTo(m) { currentMonth.value = m; showMonthPicker.value = false; }
         
+        // 載入台灣股市官方清單 (含上市上櫃)
+        async function loadStockList() {
+            if (cachedStockList.value.length > 0 || isStockListLoading.value) return;
+            isStockListLoading.value = true;
+            try {
+                const [tseData, otcData] = await Promise.all([
+                    safeFetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL', true).catch(() => []),
+                    safeFetch('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes', true).catch(() => [])
+                ]);
+                
+                const list = [];
+                if(tseData && tseData.length) {
+                    tseData.forEach(item => {
+                        if (item.Code && item.Name) list.push({ id: item.Code, name: item.Name.trim() });
+                    });
+                }
+                if(otcData && otcData.length) {
+                    otcData.forEach(item => {
+                        if (item.SecuritiesCompanyCode && item.CompanyName) {
+                            list.push({ id: item.SecuritiesCompanyCode, name: item.CompanyName.trim() });
+                        }
+                    });
+                }
+                
+                if(list.length > 0) cachedStockList.value = list;
+            } catch (e) {
+                console.error("Failed to load stock list", e);
+            }
+            isStockListLoading.value = false;
+        }
+
         function changeDate(delta) {
              const d = new Date(currentYear.value, currentMonth.value, selectedDay.value + delta);
              currentYear.value = d.getFullYear();
@@ -695,7 +768,7 @@ createApp({
         }
 
         async function syncToCloud() {
-            if (!user.value) return;
+            if (!auth || !user.value) return;
             try {
                 const stateDoc = fb.doc(db, 'artifacts', appId, 'users', user.value.uid, 'appData', 'globalState');
                 await fb.setDoc(stateDoc, { entries: JSON.stringify(entries.value), stockPortfolio: stockPortfolio.value, categories: categories.value, settings: settings.value, lastSync: Date.now() });
@@ -703,7 +776,7 @@ createApp({
         }
 
         async function loadFromCloud() {
-            if (!user.value) return;
+            if (!auth || !user.value) return;
             isGlobalLoading.value = true;
             try {
                 const stateDoc = fb.doc(db, 'artifacts', appId, 'users', user.value.uid, 'appData', 'globalState');
@@ -720,6 +793,7 @@ createApp({
         }
 
         async function handleGoogleLogin() {
+            if (!auth) { showError("Firebase 未初始化"); return; }
             showLoginModal.value = false;
             setTimeout(async () => {
                 isGlobalLoading.value = true;
@@ -735,6 +809,7 @@ createApp({
         }
 
         async function handleLogout() {
+            if (!auth) return;
             await fb.signOut(auth);
             user.value = null; entries.value = {}; stockPortfolio.value = [];
         }
@@ -769,39 +844,103 @@ createApp({
             }
         }
 
+        // --- 核心優化：雙引擎報價機制 (TWSE MIS + Yahoo Finance 備援) ---
         async function updatePortfolioPrices() {
             if (!stockPortfolio.value.length) return;
-            if (geminiKeyMissing.value) { showError("請在程式碼中填入 Gemini API Key"); return; }
-            
             isAILoading.value = true;
+            
             try {
-                const syms = stockPortfolio.value.map(s => s.name).join(', ');
-                const sys = `你是一位專業的台股助理。請搜尋 Google 並參考 Yahoo 股市台灣 或 TWSE/TPEx 官方資訊。
-                目標：取得這幾檔股票的最新『成交價』(Trade Price)：${syms}。
-                格式要求：僅回傳 JSON 例如 {"2330": 1050, "6547": 155}。注意區分上市與上櫃股碼。`;
+                // 1. 取得所有清單中的股票代碼
+                const syms = stockPortfolio.value.map(s => {
+                    let code = s.name.match(/\d+/)?.[0];
+                    if (!code && cachedStockList.value.length > 0) {
+                        const found = cachedStockList.value.find(c => s.name.includes(c.name) || c.name.includes(s.name));
+                        if (found) code = found.id;
+                    }
+                    return code;
+                }).filter(c => c);
 
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `取得台股即時成交價：${syms}` }] }], systemInstruction: { parts: [{ text: sys }] }, tools: [{ "google_search": {} }] })
+                if (syms.length === 0) {
+                     showError("無法識別股票代碼");
+                     isAILoading.value = false;
+                     return;
+                }
+
+                const priceMap = {};
+
+                // 引擎 1：台灣證交所 MIS API (最即時，涵蓋多數上市櫃)
+                try {
+                    const queryList = syms.map(c => `tse_${c}.tw|otc_${c}.tw`).join('|');
+                    const targetUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${queryList}&json=1&delay=0&_=${Date.now()}`;
+                    const data = await safeFetch(targetUrl, true);
+                    
+                    if (data && data.msgArray && data.msgArray.length > 0) {
+                        data.msgArray.forEach(item => {
+                            const code = item.c; 
+                            const price = (item.z !== '-' ? item.z : (item.o !== '-' ? item.o : item.y));
+                            if (code && price) {
+                                priceMap[code] = { price: parseFloat(price), name: item.n };
+                            }
+                        });
+                    }
+                } catch(e) {
+                    console.warn("TWSE MIS Engine failed, will use Yahoo fallback");
+                }
+
+                // 找出證交所查不到的「漏網之魚」 (如 009816 等特殊商品)
+                const missingSyms = syms.filter(c => !priceMap[c]);
+
+                // 引擎 2：Yahoo Finance API (全球資料庫，涵蓋權證與特殊 ETF)
+                if (missingSyms.length > 0) {
+                    try {
+                        const yQuery = missingSyms.map(c => `${c}.TW,${c}.TWO`).join(',');
+                        const targetUrl = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${yQuery}`;
+                        const yData = await safeFetch(targetUrl, true);
+                        
+                        if (yData && yData.quoteResponse && yData.quoteResponse.result) {
+                            yData.quoteResponse.result.forEach(item => {
+                                const code = item.symbol.split('.')[0];
+                                const price = item.regularMarketPrice;
+                                if (code && price) {
+                                    priceMap[code] = { price: parseFloat(price), name: item.shortName || item.longName || code };
+                                }
+                            });
+                        }
+                    } catch(e) {
+                        console.warn("Yahoo Engine failed", e);
+                    }
+                }
+
+                // 結算並更新至畫面
+                let updateCount = 0;
+                stockPortfolio.value.forEach(stk => {
+                    let id = stk.name.match(/\d+/)?.[0];
+                    if (!id && cachedStockList.value.length > 0) {
+                        const found = cachedStockList.value.find(c => stk.name.includes(c.name) || c.name.includes(stk.name));
+                        if (found) id = found.id;
+                    }
+                    
+                    if (id && priceMap[id]) {
+                        stk.currentPrice = priceMap[id].price;
+                        // 確保名稱為正確的中文
+                        if (priceMap[id].name) {
+                            const twseName = `${priceMap[id].name}(${id})`;
+                            if (stk.name !== twseName) stk.name = twseName;
+                        }
+                        updateCount++;
+                    }
                 });
-                const d = await res.json();
-                const text = d.candidates?.[0]?.content?.parts?.[0]?.text;
-                // 去除可能存在的 markdown 標記
-                const jsonStr = text?.replace(/```json|```/g, '').trim();
-                const match = jsonStr?.match(/\{[\s\S]*\}/);
                 
-                if (match) {
-                    const priceMap = JSON.parse(match[0]);
-                    stockPortfolio.value.forEach(stk => {
-                        // 模糊匹配：嘗試用名稱或代號找對應價格
-                        const id = stk.name.match(/\d{4,}/)?.[0] || stk.name;
-                        const matchKey = Object.keys(priceMap).find(k => k.includes(id) || id.includes(k));
-                        if (matchKey) stk.currentPrice = Number(priceMap[matchKey]);
-                    });
-                    lastSyncTime.value = new Date().toLocaleTimeString(); await syncToCloud();
-                } else { showError("行情暫時無法更新"); }
-            } catch (e) { showError("行情獲取失敗"); }
+                if (updateCount > 0) {
+                    lastSyncTime.value = new Date().toLocaleTimeString();
+                    await syncToCloud();
+                } else {
+                    showError("查無股市資料或收盤中");
+                }
+            } catch (e) {
+                console.error(e);
+                showError("無法取得股市資料，請檢查網路連線");
+            }
             isAILoading.value = false;
         }
 
@@ -817,23 +956,45 @@ createApp({
         }
 
         function debouncedSearch() {
-            if(geminiKeyMissing.value) return;
             clearTimeout(searchTimeout);
-            if (!newStock.value.name) { stockSuggestions.value = []; return; }
+            const query = newStock.value.name.trim();
+            if (!query) { stockSuggestions.value = []; return; }
+            
             searchTimeout = setTimeout(async () => {
+                let results = [];
                 try {
-                    const sys = `Lookup TWSE codes. Return JSON: [{"name": "台積電", "id": "2330"}]. Key: ${newStock.value.name}`;
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `Search ${newStock.value.name}` }] }], systemInstruction: { parts: [{ text: sys }] }, tools: [{ "google_search": {} }] })
-                    });
-                    const d = await res.json();
-                    const text = d.candidates?.[0]?.content?.parts?.[0]?.text;
-                    const jsonStr = text?.replace(/```json|```/g, '').trim();
-                    const match = jsonStr?.match(/\[[\s\S]*\]/);
-                    if (match) stockSuggestions.value = JSON.parse(match[0]);
-                } catch (e) {}
-            }, 800);
+                    // 1. 優先使用本地快取清單 (精準匹配台股中英文與代碼)
+                    if (cachedStockList.value.length > 0) {
+                        results = cachedStockList.value.filter(s => 
+                            s.id.includes(query) || s.name.includes(query) || query.includes(s.name)
+                        ).slice(0, 10);
+                    }
+                    
+                    // 2. 本地查無結果，嘗試 Yahoo 搜尋備援
+                    if (results.length === 0 && !/^\d+$/.test(query)) {
+                        const yUrl = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&lang=zh-Hant-TW&region=TW&quotesCount=6`;
+                        const yData = await safeFetch(yUrl, true);
+                        if (yData && yData.quotes) {
+                            yData.quotes.forEach(q => {
+                                if (q.symbol && (q.symbol.endsWith('.TW') || q.symbol.endsWith('.TWO'))) {
+                                    const id = q.symbol.split('.')[0];
+                                    const name = q.shortname || q.longname || id;
+                                    if (!results.find(r => r.id === id)) results.push({ name, id });
+                                }
+                            });
+                        }
+                    }
+                } catch(e) {
+                    console.warn("Search API failed", e);
+                }
+                
+                // 3. 保底選項：純數字代碼直接給予加入選項
+                if (results.length === 0 && /^\d+$/.test(query)) {
+                    results.push({ name: query, id: query });
+                }
+                
+                stockSuggestions.value = results;
+            }, 400);
         }
 
         function selectStockSuggestion(sug) { newStock.value.name = `${sug.name}(${sug.id})`; stockSuggestions.value = []; }
@@ -954,6 +1115,7 @@ createApp({
         // --- 5. Phase 5: 生命週期與監聽 ---
         onMounted(() => {
             updateIcons();
+            loadStockList(); // 啟動時自動載入台股名單
             if (auth) {
                 fb.onAuthStateChanged(auth, (u) => {
                     user.value = u;
@@ -982,7 +1144,7 @@ createApp({
             handleMultiPhotoUpload, addLocation, locationSearch, openGoogleMaps, openGoogleMapsSearch, startRecording, stopRecording, playAudio, isRecording, selectStockSuggestion, getPhotoGridClass, changeYear, changeMonth, currentDayData,
             selectedCategoryForDetail, categoryDetailRecords, jumpToCategoryDetails, jumpToEdit, deleteSpecificRecord,
             user, handleGoogleLogin, handleLogout, isGlobalLoading, changeYearTo, changeMonthTo,
-            changeDate, loadFormData, firebaseConfigMissing, geminiKeyMissing
+            changeDate, loadFormData, firebaseConfigMissing
         };
     }
 }).mount('#app');
