@@ -427,6 +427,15 @@
                     </div>
                 </div>
 
+                <!-- API Key 設定 -->
+                <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-6 border border-slate-100">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[0.9em] font-black text-slate-700">Gemini API Key</span>
+                        <input type="password" v-model="settings.geminiKey" placeholder="Paste Key Here" class="bg-slate-50 rounded-xl px-4 py-3 font-black text-[0.7em] outline-none border-none ring-1 ring-slate-100 w-32 text-right text-slate-600 focus:ring-2 focus:ring-indigo-200 transition-all">
+                    </div>
+                    <p class="text-[0.65em] text-slate-400 font-bold leading-relaxed">Required for AI stock updates & analysis.</p>
+                </div>
+
                 <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-8 transition-all">
                     <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700">{{ t('lang_label') }}</span>
                         <select v-model="settings.lang" class="bg-slate-50 rounded-xl px-4 py-3 font-black text-[0.7em] outline-none border-none ring-1 ring-slate-100"><option value="zh">繁體中文</option><option value="en">English</option></select>
@@ -469,6 +478,7 @@
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
                 <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
+                <!-- 綁定手勢事件 -->
                 <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[96vh] shadow-2xl modal-scrollable overflow-x-hidden" 
                      :class="{ 'modal-transition': !isDraggingModal }" 
                      :style="modalStyle" 
@@ -532,7 +542,7 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 createApp({
     setup() {
         // --- 1. Phase 1: 常數與 Firebase 初始化 ---
-        const appVersion = "v1.2.7";
+        const appVersion = "v1.2.8";
         
         // 嘗試讀取環境變數，若無則使用使用者自定義配置
         let firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
@@ -551,8 +561,6 @@ createApp({
                 messagingSenderId: "YOUR_SENDER_ID_HERE",
                 appId: "YOUR_APP_ID_HERE"
             };
-            // 標記配置缺失，用於 UI 提示 (可選)
-            // console.warn("使用預設 Firebase 配置，請在程式碼中填入您的設定。");
         }
 
         const fb = window.FirebaseSDK;
@@ -567,14 +575,14 @@ createApp({
         }
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'lifetrack-pro';
-        const apiKey = ""; 
+        const apiKey = ""; // 預設為空，改由設定讀取
 
         // --- 2. Phase 2: 響應式狀態 (Refs) ---
         const currentYear = ref(new Date().getFullYear());
         const currentMonth = ref(new Date().getMonth());
         const selectedDay = ref(new Date().getDate());
         const currentView = ref('ledger');
-        const settings = ref({ lang: 'zh', themeColor: '#4f46e5', fontSize: 'medium' });
+        const settings = ref({ lang: 'zh', themeColor: '#4f46e5', fontSize: 'medium', geminiKey: '' });
         const user = ref(null);
         const isGlobalLoading = ref(true);
         const lastSyncTime = ref('');
@@ -778,6 +786,9 @@ createApp({
 
         async function updatePortfolioPrices() {
             if (!stockPortfolio.value.length) return;
+            const key = settings.value.geminiKey || apiKey;
+            if (!key) { showError("請先在設定填入 Gemini API Key"); return; }
+            
             isAILoading.value = true;
             try {
                 const syms = stockPortfolio.value.map(s => s.name).join(', ');
@@ -785,7 +796,7 @@ createApp({
                 目標：取得這幾檔股票的最新『成交價』(Trade Price)：${syms}。
                 格式要求：僅回傳 JSON 例如 {"2330": 1050, "6547": 155}。注意區分上市與上櫃股碼。`;
 
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: `取得台股即時成交價：${syms}` }] }], systemInstruction: { parts: [{ text: sys }] }, tools: [{ "google_search": {} }] })
@@ -802,7 +813,7 @@ createApp({
                     });
                     lastSyncTime.value = new Date().toLocaleTimeString(); await syncToCloud();
                 } else { showError("行情暫時無法更新"); }
-            } catch (e) { showError("行情獲取失敗"); }
+            } catch (e) { showError("行情獲取失敗: " + e.message); }
             isAILoading.value = false;
         }
 
@@ -818,12 +829,15 @@ createApp({
         }
 
         function debouncedSearch() {
+            const key = settings.value.geminiKey || apiKey;
+            if(!key) return; // Silent fail if no key on typing
+            
             clearTimeout(searchTimeout);
             if (!newStock.value.name) { stockSuggestions.value = []; return; }
             searchTimeout = setTimeout(async () => {
                 try {
                     const sys = `Lookup TWSE codes. Return JSON: [{"name": "台積電", "id": "2330"}]. Key: ${newStock.value.name}`;
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ contents: [{ parts: [{ text: `Search ${newStock.value.name}` }] }], systemInstruction: { parts: [{ text: sys }] }, tools: [{ "google_search": {} }] })
                     });
