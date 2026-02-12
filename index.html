@@ -169,7 +169,7 @@
         <p class="text-[0.65em] font-black text-slate-400 tracking-widest uppercase">Cloud Syncing...</p>
     </div>
 
-    <!-- 未配置 Firebase 警告 -->
+    <!-- 未配置 Firebase 警告 (若使用者未填入配置) -->
     <div v-if="firebaseConfigMissing" class="absolute top-0 left-0 right-0 z-[210] bg-red-600 text-white p-4 text-center text-[0.75em] font-bold shadow-xl">
         請編輯程式碼，填入您的 Firebase 設定以啟用雲端功能
     </div>
@@ -690,7 +690,7 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 createApp({
     setup() {
         // --- 1. Phase 1: 常數與 Firebase 初始化 ---
-        const appVersion = "v1.4.5";
+        const appVersion = "v1.4.6";
         
         let firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
         let firebaseConfig;
@@ -857,14 +857,13 @@ createApp({
             return dictionary[lang]?.[key] || dictionary['zh'][key] || key;
         }
         
-        // 格式化 24 小時制為 AM / PM
         function formatAMPM(timeStr) {
             if (!timeStr) return '';
             let [h, m] = timeStr.split(':');
             h = parseInt(h, 10);
             const ampm = h >= 12 ? 'PM' : 'AM';
             h = h % 12;
-            h = h ? h : 12; // 0 點應顯示為 12
+            h = h ? h : 12; 
             return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
         }
 
@@ -874,31 +873,39 @@ createApp({
         function getCategoryIcon(n) { return categories.value.find(c => c.name === n)?.icon || '❓'; }
         function getPhotoGridClass(c) { return c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48'); }
 
-        // 多重代理保護機制 - 強固版 (防止 JSON 解析失敗)
+        // 終極多重代理保護機制 (無視 502/408，靜默切換)
         async function fetchWithProxy(targetUrl) {
             const encodedUrl = encodeURIComponent(targetUrl);
-            const ts = Date.now();
             const proxies = [
-                targetUrl, // 優先嘗試直接連線
-                `https://api.allorigins.win/raw?url=${encodedUrl}&_ts=${ts}`,
-                `https://api.codetabs.com/v1/proxy?quest=${encodedUrl}&_ts=${ts}`,
-                `https://corsproxy.io/?${encodedUrl}`
+                { url: `https://api.allorigins.win/get?url=${encodedUrl}`, type: 'allorigins' },
+                { url: `https://api.codetabs.com/v1/proxy?quest=${encodedUrl}`, type: 'direct' },
+                { url: `https://corsproxy.io/?${encodedUrl}`, type: 'direct' }
             ];
             
-            for (const proxyUrl of proxies) {
+            if (targetUrl.includes('openapi.twse') || targetUrl.includes('tpex.org')) {
+                 proxies.unshift({ url: targetUrl, type: 'direct' });
+            }
+
+            for (const p of proxies) {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6秒快速跳線
-                    const res = await fetch(proxyUrl, { signal: controller.signal });
+                    const timeoutId = setTimeout(() => controller.abort(), 7000);
+                    const res = await fetch(p.url, { signal: controller.signal });
                     clearTimeout(timeoutId);
                     
                     if (res.ok) {
-                        const contentType = res.headers.get("content-type");
-                        if (contentType && contentType.includes("application/json")) {
-                            return await res.json();
+                        if (p.type === 'allorigins') {
+                            const wrapper = await res.json();
+                            if (wrapper && wrapper.contents) {
+                                return JSON.parse(wrapper.contents);
+                            }
                         } else {
                             const text = await res.text();
-                            return JSON.parse(text); // 強制解析防錯
+                            try {
+                                return JSON.parse(text);
+                            } catch(e) {
+                                continue; 
+                            }
                         }
                     }
                 } catch(e) {
@@ -924,7 +931,7 @@ createApp({
             const todayStr = new Date().toLocaleDateString();
             let useCache = false;
             try {
-                const localCache = localStorage.getItem('lifetrack_stock_list_v4');
+                const localCache = localStorage.getItem('lifetrack_stock_list_v5');
                 if (localCache) {
                     const parsed = JSON.parse(localCache);
                     if (parsed.list && parsed.list.length > 0) {
@@ -934,7 +941,7 @@ createApp({
                 }
             } catch(e) {}
 
-            if (useCache) return; // 本日已同步過，直接使用快取即可
+            if (useCache) return; 
 
             isStockListLoading.value = true;
             try {
@@ -966,10 +973,10 @@ createApp({
                 
                 if(list.length > 0) {
                     cachedStockList.value = list;
-                    try { localStorage.setItem('lifetrack_stock_list_v4', JSON.stringify({ date: todayStr, list: list })); } catch(e) {}
+                    try { localStorage.setItem('lifetrack_stock_list_v5', JSON.stringify({ date: todayStr, list: list })); } catch(e) {}
                 }
             } catch (e) {
-                console.error("Failed to load stock list", e);
+                // 失敗時不干擾主程式
             }
             isStockListLoading.value = false;
         }
@@ -1099,10 +1106,10 @@ createApp({
 
                 const priceMap = {};
 
-                // 引擎 1：Yahoo Finance API 
+                // 引擎 1：Yahoo Finance API (使用 query1 更穩定)
                 try {
                     const yQuery = syms.map(c => `${c}.TW,${c}.TWO`).join(',');
-                    const targetUrl = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${yQuery}`;
+                    const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${yQuery}`;
                     const yData = await fetchWithProxy(targetUrl);
                     
                     if (yData && yData.quoteResponse && yData.quoteResponse.result) {
@@ -1148,7 +1155,7 @@ createApp({
                         }
                         updateCount++;
                     } else if (id) {
-                        // 當所有即時網路都失敗，強制調出快取的收盤價 (必定找到 009816)
+                        // 終極保底
                         const cachedItem = cachedStockList.value.find(c => c.id === id);
                         if (cachedItem && cachedItem.price > 0) {
                             stk.currentPrice = cachedItem.price;
@@ -1312,7 +1319,7 @@ createApp({
                 // 2. 本地查無，才動用 Yahoo 備援
                 if (results.length === 0 && !/^\d+$/.test(query)) {
                     try {
-                        const yUrl = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&lang=zh-Hant-TW&region=TW&quotesCount=6`;
+                        const yUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&lang=zh-Hant-TW&region=TW&quotesCount=6`;
                         const yData = await fetchWithProxy(yUrl);
                         if (yData && yData.quotes) {
                             yData.quotes.forEach(q => {
