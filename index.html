@@ -2,7 +2,8 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 加入 viewport-fit=cover 以完美適配手機瀏海與底部橫條 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover">
     <title>LifeTrack - 專業 AI 日誌與官方股市記帳</title>
     <!-- 引入 Vue 3, Tailwind CSS 與 Lucide 圖示庫 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -24,25 +25,36 @@
 
     <style>
         [v-cloak] { display: none; }
-        :root { --p-color: #4f46e5; }
+        :root { 
+            --p-color: #4f46e5; 
+            /* 定義安全區域變數 */
+            --sat: env(safe-area-inset-top); 
+            --sab: env(safe-area-inset-bottom);
+        }
         
-        /* 基礎佈局 */
-        .app-container { height: 100dvh; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        
-        body {
+        /* 鎖定底層，防止手機瀏覽器橡皮筋回彈 */
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            position: fixed;
+            background-color: #f8fafc;
             user-select: none;
             -webkit-user-select: none;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
-            background-color: #f1f5f9;
-            overscroll-behavior: none;
         }
 
+        .app-container { height: 100%; width: 100%; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -webkit-overflow-scrolling: touch; }
+        
+        /* 強制所有輸入框為 16px，防止 iOS 自動放大 */
         input, textarea, select {
             user-select: text !important;
             -webkit-user-select: text !important;
+            font-size: 16px !important;
         }
 
         .text-p { color: var(--p-color) !important; }
@@ -54,8 +66,15 @@
         .app-font-medium { font-size: 16px; }
         .app-font-large { font-size: 20px; }
         
-        .card-shadow { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
-        .safe-pb { padding-bottom: calc(8.5rem + env(safe-area-inset-bottom)); }
+        /* 現代化柔和陰影 */
+        .card-shadow { box-shadow: 0 8px 30px -10px rgba(0, 0, 0, 0.06); }
+        
+        /* 適配手機邊界的 Padding */
+        .pt-safe { padding-top: max(var(--sat), 1rem); }
+        .pb-safe { padding-bottom: max(var(--sab), 1rem); }
+        .nav-pb { padding-bottom: var(--sab); height: calc(4.5rem + var(--sab)); }
+        .main-pb { padding-bottom: calc(5.5rem + var(--sab)); }
+        .modal-pb { padding-bottom: max(var(--sab), 1.5rem); }
 
         /* 甜甜圈圖樣式 (Donut Chart) */
         .pie-chart-flat {
@@ -98,6 +117,7 @@
             overflow-x: hidden;
             overflow-y: auto;
             will-change: transform, opacity;
+            -webkit-overflow-scrolling: touch;
         }
         .modal-transition {
             transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
@@ -141,17 +161,17 @@
         .photo-grid-3 { grid-template-areas: "a b" "a c"; grid-template-columns: 1.5fr 1fr; }
     </style>
 </head>
-<body class="antialiased overflow-hidden text-slate-900">
+<body class="antialiased text-slate-900">
 
 <div id="app" v-cloak class="flex justify-center items-center app-container" :style="{'--p-color': settings.themeColor}">
     <!-- 雲端同步中覆蓋層 -->
     <div v-if="isGlobalLoading" class="absolute inset-0 z-[200] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center">
         <div class="w-12 h-12 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-        <p class="text-[10px] font-black text-slate-400 tracking-widest uppercase">Cloud Syncing...</p>
+        <p class="text-[0.65em] font-black text-slate-400 tracking-widest uppercase">Cloud Syncing...</p>
     </div>
 
     <!-- 未配置 Firebase 警告 (若使用者未填入配置) -->
-    <div v-if="firebaseConfigMissing" class="absolute top-0 left-0 right-0 z-[210] bg-red-600 text-white p-4 text-center text-xs font-bold shadow-xl">
+    <div v-if="firebaseConfigMissing" class="absolute top-0 left-0 right-0 z-[210] bg-red-600 text-white p-4 text-center text-[0.75em] font-bold shadow-xl">
         請編輯程式碼，填入您的 Firebase 設定以啟用雲端功能
     </div>
 
@@ -159,50 +179,50 @@
         
         <!-- 通知列 -->
         <transition name="slide-down">
-            <div v-if="errorMsg" class="absolute top-0 left-0 right-0 z-[100] bg-red-500 text-white py-3 px-6 text-center font-black text-xs shadow-xl flex items-center justify-center gap-2">
+            <div v-if="errorMsg" class="absolute top-0 left-0 right-0 z-[100] bg-red-500 text-white py-3 px-6 text-center font-black text-[0.75em] shadow-xl flex items-center justify-center gap-2 pt-safe">
                 <i data-lucide="alert-circle" class="w-4 h-4"></i>
                 {{ errorMsg }}
             </div>
         </transition>
 
-        <!-- 標題區域 -->
-        <header :style="{ backgroundColor: settings.themeColor }" class="p-4 text-white shadow-md shrink-0 z-50 transition-all duration-500">
+        <!-- 標題區域 (加上 pt-safe 適配瀏海) -->
+        <header :style="{ backgroundColor: settings.themeColor }" class="px-5 pb-4 pt-safe text-white shadow-md shrink-0 z-50 transition-all duration-500">
             <div v-if="currentView === 'ledger'" class="space-y-2">
                 <div class="flex items-center justify-between">
-                    <button @click="changeYear(-1)" class="p-2 active:opacity-50 transition-all"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
-                    <span @click="showYearPicker = true" class="text-lg font-black tracking-widest cursor-pointer active:opacity-70">{{ currentYear }} {{ t('year') }}</span>
-                    <button @click="changeYear(1)" class="p-2 active:opacity-50 transition-all"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                    <button @click="changeYear(-1)" class="p-2 active:scale-90 active:opacity-70 transition-all"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                    <span @click="showYearPicker = true" class="text-[1.15em] font-black tracking-widest cursor-pointer active:opacity-70">{{ currentYear }} {{ t('year') }}</span>
+                    <button @click="changeYear(1)" class="p-2 active:scale-90 active:opacity-70 transition-all"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                 </div>
                 <div class="flex items-center justify-between">
-                    <button @click="changeMonth(-1)" class="p-2 active:opacity-50 transition-all"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
-                    <span @click="showMonthPicker = true" class="text-xl font-black tracking-widest cursor-pointer active:opacity-70">{{ currentMonth + 1 }} {{ t('month') }}</span>
-                    <button @click="changeMonth(1)" class="p-2 active:opacity-50 transition-all"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                    <button @click="changeMonth(-1)" class="p-2 active:scale-90 active:opacity-70 transition-all"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                    <span @click="showMonthPicker = true" class="text-[1.25em] font-black tracking-widest cursor-pointer active:opacity-70">{{ currentMonth + 1 }} {{ t('month') }}</span>
+                    <button @click="changeMonth(1)" class="p-2 active:scale-90 active:opacity-70 transition-all"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                 </div>
             </div>
-            <div v-else class="flex justify-between items-center">
+            <div v-else class="flex justify-between items-center h-[3.5rem]">
                 <div class="flex items-center gap-2">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-sm">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-sm">
                         <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" stroke="white" stroke-width="2.5"/>
                         <path d="M12 8V16M8 12H16" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
                         <circle cx="12" cy="12" r="3" fill="white" fill-opacity="0.3"/>
                     </svg>
-                    <h1 class="font-black tracking-tight" style="font-size: 1.3em">{{ t(currentView) }}</h1>
+                    <h1 class="font-black tracking-tight text-[1.25em]">{{ t(currentView) }}</h1>
                 </div>
-                <div @click="showYearPicker = true" class="text-right cursor-pointer active:opacity-60 bg-white/10 px-3 py-1 rounded-xl backdrop-blur-sm border border-white/10">
-                    <p class="text-[0.6em] font-bold opacity-70">{{ currentYear }}{{ t('year') }}</p>
-                    <p class="text-[1.1em] font-black leading-none">{{ currentMonth + 1 }}{{ t('month') }}</p>
+                <div @click="showYearPicker = true" class="text-right cursor-pointer active:scale-95 bg-white/10 px-3 py-1.5 rounded-xl backdrop-blur-sm border border-white/10 transition-all">
+                    <p class="text-[0.6em] font-bold opacity-80 leading-none mb-1">{{ currentYear }}{{ t('year') }}</p>
+                    <p class="text-[1em] font-black leading-none">{{ currentMonth + 1 }}{{ t('month') }}</p>
                 </div>
             </div>
         </header>
 
-        <!-- 主要內容區 -->
-        <main class="flex-1 overflow-y-auto hide-scrollbar bg-slate-50 safe-pb relative">
+        <!-- 主要內容區 (加上 main-pb 適配底部導覽列高度) -->
+        <main class="flex-1 overflow-y-auto hide-scrollbar bg-slate-50 relative main-pb">
             <!-- 年月選擇彈窗 -->
             <div v-if="showYearPicker || showMonthPicker" class="absolute inset-0 z-[60] flex items-center justify-center p-6">
-                <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showYearPicker = false; showMonthPicker = false"></div>
-                <div class="relative w-full max-w-xs bg-white rounded-[2.5rem] p-6 shadow-2xl animate-in zoom-in duration-200">
+                <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showYearPicker = false; showMonthPicker = false"></div>
+                <div class="relative w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl animate-in zoom-in duration-200">
                     <div class="flex justify-between items-center mb-4 border-b pb-2">
-                        <h3 class="font-black text-slate-400 text-xs uppercase tracking-widest">{{ showYearPicker ? t('choose_year') : t('choose_month') }}</h3>
+                        <h3 class="font-black text-slate-400 text-[0.75em] uppercase tracking-widest">{{ showYearPicker ? t('choose_year') : t('choose_month') }}</h3>
                         <div class="flex gap-2">
                             <button @click="showYearPicker = true; showMonthPicker = false" :class="showYearPicker ? 'text-p' : 'text-slate-300'"><i data-lucide="calendar" class="w-4 h-4"></i></button>
                             <button @click="showMonthPicker = true; showYearPicker = false" :class="showMonthPicker ? 'text-p' : 'text-slate-300'"><i data-lucide="layers" class="w-4 h-4"></i></button>
@@ -212,12 +232,12 @@
                         <template v-if="showYearPicker">
                             <button v-for="y in yearRange" :key="y" @click="changeYearTo(y)" 
                                 :class="currentYear === y ? 'bg-p text-white shadow-lg scale-105' : 'bg-slate-50 text-slate-600'"
-                                class="py-3 rounded-xl font-black transition-all">{{ y }}</button>
+                                class="py-3 rounded-xl font-black active:scale-95 transition-all">{{ y }}</button>
                         </template>
                         <template v-if="showMonthPicker">
                             <button v-for="m in 12" :key="m" @click="changeMonthTo(m-1)" 
                                 :class="currentMonth === m-1 ? 'bg-p text-white shadow-lg scale-105' : 'bg-slate-50 text-slate-600'"
-                                class="py-3 rounded-xl font-black transition-all">{{ m }}{{ t('month') }}</button>
+                                class="py-3 rounded-xl font-black active:scale-95 transition-all">{{ m }}{{ t('month') }}</button>
                         </template>
                     </div>
                 </div>
@@ -225,58 +245,58 @@
 
             <!-- 分頁：帳本 -->
             <section v-if="currentView === 'ledger'" class="animate-in fade-in duration-300">
-                <div class="p-4 bg-white border-b sticky top-0 z-10 shadow-sm">
-                    <div class="calendar-grid text-center text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">
+                <div class="p-3 bg-white border-b border-slate-100 sticky top-0 z-10 shadow-sm rounded-b-[2rem] -mx-1 px-4 pb-5">
+                    <div class="calendar-grid text-center text-[0.65em] font-bold text-slate-400 mb-2 uppercase tracking-widest">
                         <div v-for="d in t('weekdays')" :key="d">{{ d }}</div>
                     </div>
                     <div class="calendar-grid gap-1">
                         <div v-for="empty in firstDayOfMonth" :key="'e'+empty"></div>
                         <div v-for="day in daysInMonth" :key="day" @click="selectedDay = day"
-                            class="py-1 text-center rounded-xl cursor-pointer transition relative aspect-square flex flex-col items-center justify-start hover:bg-slate-100"
+                            class="py-1 text-center rounded-2xl cursor-pointer transition-all relative aspect-square flex flex-col items-center justify-start active:bg-slate-100"
                         >
-                            <!-- 數字選取圓圈獨立出來，不包覆下方橫線 -->
-                            <div class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full transition-all shrink-0"
+                            <!-- 數字選取圓圈 -->
+                            <div class="w-8 h-8 flex items-center justify-center rounded-full transition-all shrink-0"
                                  :style="selectedDay === day ? { backgroundColor: settings.themeColor, color: 'white' } : {}"
                                  :class="[
                                      selectedDay === day ? 'shadow-md scale-110 font-black z-10' : 'font-bold',
                                      selectedDay !== day ? getDayTextColor(day) : ''
                                  ]">
-                                <span :class="isToday(day) ? 'text-[0.65em] leading-none' : 'text-[0.85em]'" class="relative">
+                                <span :class="isToday(day) ? 'text-[0.65em] leading-none' : 'text-[1em] leading-none'" class="relative top-[1px]">
                                     {{ isToday(day) ? t('today') : day }}
                                 </span>
                             </div>
                             
-                            <!-- 行事曆橫線顯示 (最多三條) 改短 (w-4) 且置於底部 -->
-                            <div v-if="getDayEntries(day).events?.length" class="absolute bottom-1.5 flex flex-col gap-[2px] items-center">
+                            <!-- 行事曆橫線顯示 (最多三條) -->
+                            <div v-if="getDayEntries(day).events?.length" class="absolute bottom-1 flex flex-col gap-[2px] items-center">
                                 <template v-for="(ev, idx) in getDayEntries(day).events.slice(0, 3)" :key="idx">
-                                    <div class="w-4 h-[2.5px] rounded-full opacity-90" :style="{ backgroundColor: getEventTypeColor(ev.type) }"></div>
+                                    <div class="w-3.5 h-[2.5px] rounded-full opacity-90" :style="{ backgroundColor: getEventTypeColor(ev.type) }"></div>
                                 </template>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="p-4 space-y-4">
+                <div class="p-5 space-y-4">
                     <h3 class="text-[0.75em] font-black text-slate-400 uppercase tracking-wider px-1">{{ selectedDateString }}</h3>
                     
                     <div v-if="currentDayData" class="flex flex-col gap-4">
                         <!-- 當日財務 -->
-                        <div @click="openAddModal('finance')" class="bg-white p-5 rounded-[1.5rem] card-shadow border border-slate-100 cursor-pointer active:scale-[0.98] transition-all">
-                            <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-2">
+                        <div @click="openAddModal('finance')" class="bg-white p-5 rounded-3xl card-shadow border border-slate-100/50 cursor-pointer active:scale-[0.98] transition-all">
+                            <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
                                 <div class="flex items-center gap-2">
                                     <i data-lucide="circle-dollar-sign" class="w-4 h-4 text-p"></i>
-                                    <span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_finance') }}</span>
+                                    <span class="text-[0.85em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_finance') }}</span>
                                 </div>
-                                <span class="text-[0.7em] font-bold text-slate-300">#{{ currentDayData?.records?.length || 0 }}</span>
+                                <span class="text-[0.75em] font-bold text-slate-300">#{{ currentDayData?.records?.length || 0 }}</span>
                             </div>
                             <div class="flex justify-between items-center px-1">
-                                <div class="flex flex-col gap-2">
-                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-black"><i data-lucide="arrow-down-left" class="w-3 h-3"></i></div><span class="text-[0.95em] font-black text-red-600 font-mono">+{{ formatNumber(dayTotalIncome) }}</span></div>
-                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-black"><i data-lucide="arrow-up-right" class="w-3 h-3"></i></div><span class="text-[0.95em] font-black text-green-600 font-mono">-{{ formatNumber(dayTotalExpense) }}</span></div>
+                                <div class="flex flex-col gap-2.5">
+                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-black"><i data-lucide="arrow-down-left" class="w-3 h-3"></i></div><span class="text-[0.85em] font-black text-red-600 font-mono">+{{ formatNumber(dayTotalIncome) }}</span></div>
+                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-black"><i data-lucide="arrow-up-right" class="w-3 h-3"></i></div><span class="text-[0.85em] font-black text-green-600 font-mono">-{{ formatNumber(dayTotalExpense) }}</span></div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">{{ t('daily_net') }}</p>
-                                    <div :class="dayNetBalance >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[1.8em] font-black font-mono tracking-tighter leading-none">
+                                    <p class="text-[0.65em] text-slate-400 font-bold uppercase mb-1">{{ t('daily_net') }}</p>
+                                    <div :class="dayNetBalance >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[1.5em] font-black font-mono tracking-tighter leading-none">
                                         {{ dayNetBalance >= 0 ? '+' : '' }}{{ formatNumber(dayNetBalance) }}
                                     </div>
                                 </div>
@@ -284,21 +304,21 @@
                         </div>
 
                         <!-- 心情日誌 -->
-                        <div @click="openAddModal('diary')" class="bg-white p-5 rounded-[1.5rem] card-shadow border border-slate-100 cursor-pointer active:scale-[0.98] transition-all">
-                            <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-2">
+                        <div @click="openAddModal('diary')" class="bg-white p-5 rounded-3xl card-shadow border border-slate-100/50 cursor-pointer active:scale-[0.98] transition-all">
+                            <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
                                 <div class="flex items-center gap-2">
                                     <i data-lucide="pen-tool" class="w-4 h-4 text-orange-400"></i>
-                                    <span class="text-[0.8em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_diary') }}</span>
+                                    <span class="text-[0.85em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_diary') }}</span>
                                 </div>
-                                <div class="text-[1.2em] leading-none">{{ currentDayData?.feeling || '😊' }}</div>
+                                <div class="text-[1.25em] leading-none">{{ currentDayData?.feeling || '😊' }}</div>
                             </div>
                             <div class="px-1 space-y-3">
-                                <div v-if="currentDayData?.photos?.length" class="grid gap-1 overflow-hidden rounded-xl" :class="getPhotoGridClass(currentDayData.photos.length)">
+                                <div v-if="currentDayData?.photos?.length" class="grid gap-1.5 overflow-hidden rounded-2xl" :class="getPhotoGridClass(currentDayData.photos.length)">
                                     <img v-for="(img, idx) in currentDayData.photos.slice(0, 3)" :key="idx" :src="img" class="w-full h-full object-cover min-h-[80px]">
                                 </div>
-                                <p class="text-[0.9em] text-slate-600 leading-relaxed truncate">{{ currentDayData?.diaryText || t('no_diary_text') }}</p>
-                                <div v-if="currentDayData?.locations?.length" class="flex gap-1 overflow-x-auto hide-scrollbar pt-1">
-                                    <div v-for="loc in currentDayData.locations" :key="loc.name" class="flex items-center whitespace-nowrap bg-slate-100 px-2 py-1 rounded text-[0.6em] font-bold text-slate-500">
+                                <p class="text-[0.85em] text-slate-600 leading-relaxed truncate">{{ currentDayData?.diaryText || t('no_diary_text') }}</p>
+                                <div v-if="currentDayData?.locations?.length" class="flex gap-1.5 overflow-x-auto hide-scrollbar pt-1">
+                                    <div v-for="loc in currentDayData.locations" :key="loc.name" class="flex items-center whitespace-nowrap bg-slate-100 px-2.5 py-1 rounded-md text-[0.65em] font-bold text-slate-500">
                                         <i data-lucide="map-pin" class="w-2.5 h-2.5 mr-1"></i>{{ loc.name }}
                                     </div>
                                 </div>
@@ -309,144 +329,145 @@
             </section>
 
             <!-- 分頁：股市投資 -->
-            <section v-if="currentView === 'stocks'" class="p-6 space-y-6 animate-in fade-in">
-                <div class="bg-slate-900 text-white p-7 rounded-[2.5rem] shadow-xl relative overflow-hidden">
+            <section v-if="currentView === 'stocks'" class="p-5 space-y-5 animate-in fade-in">
+                <div class="bg-slate-900 text-white p-7 rounded-[2rem] shadow-xl relative overflow-hidden">
                     <div class="absolute -right-5 -top-5 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl"></div>
                     <div class="relative z-10 space-y-5 text-center">
                         <div class="flex justify-between items-center border-b border-white/10 pb-5">
-                            <div class="flex-1"><p class="text-[0.6em] opacity-50 uppercase font-black tracking-widest">{{ t('market_value') }}</p><p class="text-xl font-black font-mono tracking-tighter">${{ formatNumber(stockTotalValue) }}</p></div>
-                            <div class="w-px h-8 bg-white/10 mx-2"></div>
-                            <div class="flex-1"><p class="text-[0.6em] opacity-50 uppercase font-black tracking-widest">{{ t('total_profit') }}</p><p :class="stockTotalProfit >= 0 ? 'text-red-400' : 'text-green-400'" class="text-xl font-black font-mono tracking-tighter">{{ stockTotalProfit >= 0 ? '+' : '' }}{{ formatNumber(stockTotalProfit) }}</p></div>
+                            <div class="flex-1"><p class="text-[0.65em] opacity-60 uppercase font-black tracking-widest mb-1">{{ t('market_value') }}</p><p class="text-[1.5em] font-black font-mono tracking-tighter">${{ formatNumber(stockTotalValue) }}</p></div>
+                            <div class="w-px h-10 bg-white/10 mx-2"></div>
+                            <div class="flex-1"><p class="text-[0.65em] opacity-60 uppercase font-black tracking-widest mb-1">{{ t('total_profit') }}</p><p :class="stockTotalProfit >= 0 ? 'text-red-400' : 'text-green-400'" class="text-[1.5em] font-black font-mono tracking-tighter">{{ stockTotalProfit >= 0 ? '+' : '' }}{{ formatNumber(stockTotalProfit) }}</p></div>
                         </div>
-                        <button @click="updatePortfolioPrices" :disabled="isAILoading" class="w-full py-3 bg-white/10 rounded-2xl font-black text-[0.75em] flex items-center justify-center gap-2 active:scale-95 transition-all"><i v-if="isAILoading" data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>{{ isAILoading ? t('fetching') : t('stat_btn') }}</button>
+                        <button @click="updatePortfolioPrices" :disabled="isAILoading" class="w-full py-3.5 bg-white/10 rounded-2xl font-black text-[0.85em] flex items-center justify-center gap-2 active:scale-95 transition-all"><i v-if="isAILoading" data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>{{ isAILoading ? t('fetching') : t('stat_btn') }}</button>
                     </div>
                 </div>
 
-                <div class="space-y-4">
-                    <div v-for="(stk, idx) in stockPortfolio" :key="idx" class="bg-white p-4 rounded-3xl border border-slate-100 card-shadow flex justify-between items-center transition-all cursor-pointer" @touchstart="startStockLongPress(stk, idx)" @touchend="endStockLongPress" @mousedown="startStockLongPress(stk, idx)" @mouseup="endStockLongPress">
+                <div class="space-y-4 pb-6">
+                    <div v-for="(stk, idx) in stockPortfolio" :key="idx" class="bg-white p-4 rounded-3xl border border-slate-100 card-shadow flex justify-between items-center transition-all cursor-pointer active:scale-[0.98]" @touchstart="startStockLongPress(stk, idx)" @touchend="endStockLongPress" @mousedown="startStockLongPress(stk, idx)" @mouseup="endStockLongPress">
                         <div class="flex items-center min-w-0 flex-1">
-                            <div class="w-11 h-11 rounded-2xl bg-slate-50 flex items-center justify-center mr-4 text-[1.25em] font-bold text-p shadow-inner">{{ stk?.name?.[0] || '?' }}</div>
-                            <div class="min-w-0 flex-1"><p class="text-sm font-black text-slate-800 truncate pr-2">{{ stk?.name || '---' }}</p><p class="text-[0.6em] text-slate-400 font-bold uppercase mt-1">{{ stk?.qty }} {{ t('shares_unit') }} · cost - {{ formatNumber(stk?.buyPrice) }}</p></div>
+                            <div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center mr-4 text-[1.25em] font-bold text-p shadow-inner shrink-0">{{ stk?.name?.[0] || '?' }}</div>
+                            <div class="min-w-0 flex-1"><p class="text-[0.9em] font-black text-slate-800 truncate pr-2">{{ stk?.name || '---' }}</p><p class="text-[0.65em] text-slate-400 font-bold uppercase mt-1">{{ stk?.qty }} {{ t('shares_unit') }} · cost - {{ formatNumber(stk?.buyPrice) }}</p></div>
                         </div>
-                        <div class="flex items-center gap-4 text-right shrink-0">
-                            <div><p :class="((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[0.9em] font-black font-mono">{{ ((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? '+' : '' }}{{ formatNumber(((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) * (stk?.qty || 0)) }}</p><p class="text-[0.55em] text-slate-400 font-bold uppercase">現價: {{ stk?.currentPrice || '---' }}</p></div>
-                            <button @click.stop="stockPortfolio.splice(idx, 1)" class="text-slate-200 hover:text-red-400 p-1 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        <div class="flex items-center gap-3 text-right shrink-0">
+                            <div><p :class="((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[0.85em] font-black font-mono">{{ ((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? '+' : '' }}{{ formatNumber(((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) * (stk?.qty || 0)) }}</p><p class="text-[0.6em] text-slate-400 font-bold uppercase mt-0.5">現價: {{ stk?.currentPrice || '---' }}</p></div>
+                            <button @click.stop="stockPortfolio.splice(idx, 1)" class="text-slate-200 hover:text-red-400 p-2 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                         </div>
                     </div>
-                    <div class="p-6 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4 relative">
+                    
+                    <div class="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm space-y-4 relative mt-2">
                         <div class="relative">
-                            <input v-model="newStock.name" @input="debouncedSearch" type="text" class="bg-slate-50 w-full p-4 rounded-2xl text-[0.85em] font-black outline-none border-none shadow-inner" :placeholder="t('stock_name_ph')">
-                            <div v-if="stockSuggestions.length" class="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[100] max-h-60 overflow-y-auto hide-scrollbar">
-                                <div v-for="sug in stockSuggestions" :key="sug.id" @click="selectStockSuggestion(sug)" class="suggestion-item cursor-pointer hover:bg-slate-50">
-                                    <div class="flex justify-between items-center"><span class="text-sm font-black">{{ sug.name }}</span><span class="text-xs font-bold text-slate-400">{{ sug.id }}</span></div>
+                            <input v-model="newStock.name" @input="debouncedSearch" type="text" class="bg-slate-50 w-full p-4 rounded-2xl text-[1em] font-black outline-none border-none shadow-inner focus:ring-2 ring-indigo-50 transition-all" :placeholder="t('stock_name_ph')">
+                            <div v-if="stockSuggestions.length" class="absolute left-0 right-0 top-[105%] bg-white rounded-2xl shadow-xl border border-slate-100 z-[100] max-h-60 overflow-y-auto hide-scrollbar py-2">
+                                <div v-for="sug in stockSuggestions" :key="sug.id" @click="selectStockSuggestion(sug)" class="suggestion-item cursor-pointer hover:bg-slate-50 active:bg-slate-100">
+                                    <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700">{{ sug.name }}</span><span class="text-[0.75em] font-bold text-slate-400">{{ sug.id }}</span></div>
                                 </div>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
-                            <input v-model.number="newStock.qty" type="number" class="bg-slate-50 p-4 rounded-2xl text-[0.85em] font-black outline-none border-none shadow-inner text-center" :placeholder="t('stock_qty_ph')">
-                            <input v-model.number="newStock.buyPrice" type="number" class="bg-slate-50 p-4 rounded-2xl text-[0.85em] font-black outline-none border-none shadow-inner text-center" :placeholder="t('stock_buy_ph')">
+                            <input v-model.number="newStock.qty" type="number" class="bg-slate-50 p-4 rounded-2xl text-[1em] font-black outline-none border-none shadow-inner text-center focus:ring-2 ring-indigo-50 transition-all" :placeholder="t('stock_qty_ph')">
+                            <input v-model.number="newStock.buyPrice" type="number" class="bg-slate-50 p-4 rounded-2xl text-[1em] font-black outline-none border-none shadow-inner text-center focus:ring-2 ring-indigo-50 transition-all" :placeholder="t('stock_buy_ph')">
                         </div>
-                        <button @click="addStockItem" :style="{ backgroundColor: settings.themeColor }" class="w-full text-white py-4 rounded-2xl font-black text-[0.8em] shadow-xl active:scale-[0.98] transition-all">{{ t('add_stock_btn') }}</button>
+                        <button @click="addStockItem" :style="{ backgroundColor: settings.themeColor }" class="w-full text-white py-4 rounded-2xl font-black text-[0.85em] shadow-md active:scale-95 transition-all">{{ t('add_stock_btn') }}</button>
                     </div>
                 </div>
             </section>
 
             <!-- 分析統計頁面 -->
-            <section v-if="currentView === 'charts'" class="p-6 space-y-8 animate-in fade-in text-center text-slate-700">
+            <section v-if="currentView === 'charts'" class="p-5 space-y-6 animate-in fade-in text-center text-slate-700">
                 <div class="bg-white p-4 rounded-[2rem] card-shadow border border-slate-50 flex items-center justify-between transition-all overflow-hidden gap-1">
-                    <div class="flex-1 min-w-0"><p class="text-[0.5em] font-black text-red-600 uppercase mb-0.5 truncate">{{ t('income_short') }}</p><p class="text-[0.75em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.income) }}</p></div>
-                    <div class="h-6 w-px bg-slate-100"></div>
-                    <div class="flex-1 min-w-0"><p class="text-[0.5em] font-black text-green-600 uppercase mb-0.5 truncate">{{ t('expense_short') }}</p><p class="text-[0.75em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.expense) }}</p></div>
-                    <div class="h-6 w-px bg-slate-100"></div>
-                    <div class="flex-1 min-w-0"><p class="text-[0.5em] font-black text-indigo-500 uppercase mb-0.5 truncate">{{ t('balance') }}</p><p class="text-[0.75em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.net) }}</p></div>
-                    <div class="h-6 w-px bg-slate-100"></div>
-                    <div class="flex-1 min-w-0"><p class="text-[0.5em] font-black text-orange-500 uppercase mb-0.5 truncate">{{ t('unrealized_pl_short') }}</p><p :class="stockTotalProfit >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[0.75em] font-black truncate">${{ formatNumber(stockTotalProfit) }}</p></div>
+                    <div class="flex-1 min-w-0"><p class="text-[0.55em] font-black text-red-600 uppercase mb-1 truncate">{{ t('income_short') }}</p><p class="text-[0.85em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.income) }}</p></div>
+                    <div class="h-8 w-px bg-slate-100"></div>
+                    <div class="flex-1 min-w-0"><p class="text-[0.55em] font-black text-green-600 uppercase mb-1 truncate">{{ t('expense_short') }}</p><p class="text-[0.85em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.expense) }}</p></div>
+                    <div class="h-8 w-px bg-slate-100"></div>
+                    <div class="flex-1 min-w-0"><p class="text-[0.55em] font-black text-indigo-500 uppercase mb-1 truncate">{{ t('balance') }}</p><p class="text-[0.85em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.net) }}</p></div>
+                    <div class="h-8 w-px bg-slate-100"></div>
+                    <div class="flex-1 min-w-0"><p class="text-[0.55em] font-black text-orange-500 uppercase mb-1 truncate">{{ t('unrealized_pl_short') }}</p><p :class="stockTotalProfit >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[0.85em] font-black truncate">${{ formatNumber(stockTotalProfit) }}</p></div>
                 </div>
 
-                <div class="bg-white p-8 rounded-[3rem] card-shadow flex flex-col items-center border border-slate-50 overflow-hidden">
-                    <div class="flex justify-between items-center w-full mb-8 px-2">
-                        <h4 class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ chartMode === 'expense' ? t('expense_structure') : t('income_structure') }}</h4>
-                        <div class="flex bg-slate-50 p-1 rounded-full text-[0.6em] font-black border border-slate-100 overflow-hidden">
-                            <button @click="chartMode = 'expense'" :class="chartMode === 'expense' ? 'bg-green-600 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-1.5 rounded-full transition-all">{{ t('expense_short') }}</button>
-                            <button @click="chartMode = 'income'" :class="chartMode === 'income' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-1.5 rounded-full transition-all">{{ t('income_short') }}</button>
+                <div class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow flex flex-col items-center border border-slate-50 overflow-hidden">
+                    <div class="flex justify-between items-center w-full mb-6 px-1">
+                        <h4 class="text-[0.75em] font-black text-slate-400 uppercase tracking-widest">{{ chartMode === 'expense' ? t('expense_structure') : t('income_structure') }}</h4>
+                        <div class="flex bg-slate-50 p-1 rounded-full text-[0.75em] font-black border border-slate-100 overflow-hidden">
+                            <button @click="chartMode = 'expense'" :class="chartMode === 'expense' ? 'bg-green-600 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-1.5 rounded-full transition-all active:scale-95">{{ t('expense_short') }}</button>
+                            <button @click="chartMode = 'income'" :class="chartMode === 'income' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-1.5 rounded-full transition-all active:scale-95">{{ t('income_short') }}</button>
                         </div>
                     </div>
                     
                     <div class="pie-chart-flat" :style="{ background: pieGradient }">
                         <div class="pie-hole">
-                            <p class="text-[0.5em] text-slate-400 font-black uppercase tracking-widest mb-1">{{ chartMode === 'expense' ? t('expense') : t('income') }}</p>
-                            <p class="text-[1.25rem] font-black leading-tight" :class="chartMode === 'expense' ? 'text-green-600' : 'text-red-500'">${{ formatNumber(chartTotalValue) }}</p>
+                            <p class="text-[0.6em] text-slate-400 font-black uppercase tracking-widest mb-1">{{ chartMode === 'expense' ? t('expense') : t('income') }}</p>
+                            <p class="text-[1.25em] font-black leading-tight" :class="chartMode === 'expense' ? 'text-green-600' : 'text-red-500'">${{ formatNumber(chartTotalValue) }}</p>
                         </div>
                     </div>
 
-                    <div class="w-full mt-10 space-y-2">
+                    <div class="w-full mt-8 space-y-2">
                         <template v-for="(cat, cidx) in chartCategories" :key="cat.name">
-                             <div @click="jumpToCategoryDetails(cat.name)" class="group flex items-center p-3 rounded-[1.25rem] bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all cursor-pointer">
-                                <div class="w-8 text-center text-[0.7em] font-black text-slate-300">{{ cidx + 1 }}</div>
+                             <div @click="jumpToCategoryDetails(cat.name)" class="group flex items-center p-3 rounded-[1.25rem] bg-white hover:bg-slate-50 active:bg-slate-50 border border-transparent hover:border-slate-100 transition-all cursor-pointer">
+                                <div class="w-8 text-center text-[0.75em] font-black text-slate-300">{{ cidx + 1 }}</div>
                                 <div class="w-4 h-4 rounded-full mr-3 shrink-0 shadow-sm" :style="{backgroundColor: cat.color}"></div>
                                 <div class="flex flex-col min-w-0 flex-1 text-left">
-                                    <div class="flex justify-between items-center mb-1">
-                                        <span class="text-[0.9em] font-black text-slate-700 truncate">{{ cat.name }}</span>
+                                    <div class="flex justify-between items-center mb-1.5">
+                                        <span class="text-[0.85em] font-black text-slate-700 truncate">{{ cat.name }}</span>
                                         <span class="text-[0.8em] font-black" :class="chartMode==='expense'?'text-green-600':'text-red-500'">${{ formatNumber(cat.value) }}</span>
                                     </div>
                                     <div class="h-1.5 bg-slate-100 rounded-full w-full overflow-hidden">
                                         <div class="h-full rounded-full transition-all duration-700" :style="{ width: (cat.value / chartTotalValue * 100) + '%', backgroundColor: cat.color }"></div>
                                     </div>
                                 </div>
-                                <div class="w-10 text-right">
-                                    <span class="text-[0.65em] font-bold text-slate-400">{{ chartTotalValue > 0 ? Math.round((cat.value / chartTotalValue) * 100) : 0 }}%</span>
+                                <div class="w-12 text-right">
+                                    <span class="text-[0.75em] font-bold text-slate-400">{{ chartTotalValue > 0 ? Math.round((cat.value / chartTotalValue) * 100) : 0 }}%</span>
                                 </div>
-                                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 ml-1 group-hover:text-slate-400 transition-colors"></i>
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 ml-1"></i>
                             </div>
                         </template>
-                        <div v-if="chartCategories.length === 0" class="py-12 opacity-30 text-center font-black text-xs">目前無資料</div>
+                        <div v-if="chartCategories.length === 0" class="py-12 opacity-30 text-center font-black text-[0.85em]">目前無資料</div>
                     </div>
                 </div>
             </section>
             
             <!-- 設定分頁 -->
-            <section v-if="currentView === 'settings'" class="p-6 space-y-6">
+            <section v-if="currentView === 'settings'" class="p-5 space-y-6">
                 <!-- 帳號與同步區塊 -->
-                <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-6 border border-slate-100">
+                <div class="bg-white rounded-[2rem] p-6 card-shadow space-y-6 border border-slate-100">
                     <div class="flex items-center gap-4 mb-2">
-                        <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-indigo-600 shadow-inner overflow-hidden">
+                        <div class="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-indigo-600 shadow-inner overflow-hidden shrink-0">
                             <img v-if="user?.photoURL" :src="user.photoURL" class="w-full h-full object-cover">
                             <i v-else data-lucide="user" class="w-6 h-6"></i>
                         </div>
-                        <div>
-                            <h3 class="text-[0.9em] font-black text-slate-800 uppercase tracking-widest">{{ user ? user.email : t('account') }}</h3>
-                            <p class="text-[0.7em] font-bold text-slate-400">{{ user ? 'Google Account' : t('not_logged_in') }}</p>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-[0.9em] font-black text-slate-800 uppercase tracking-widest truncate">{{ user ? user.email : t('account') }}</h3>
+                            <p class="text-[0.75em] font-bold text-slate-400 mt-1">{{ user ? 'Google Account' : t('not_logged_in') }}</p>
                         </div>
                     </div>
                     
                     <div v-if="user" class="space-y-4">
                         <div class="flex justify-between items-center bg-green-50 p-4 rounded-2xl border border-green-100">
-                            <span class="text-[0.7em] font-black text-green-700 tracking-widest uppercase">Cloud Status</span>
-                            <div class="flex items-center gap-1.5 text-green-600 font-black text-[0.7em]">
-                                <i data-lucide="check-circle" class="w-3 h-3"></i> Synchronized
+                            <span class="text-[0.75em] font-black text-green-700 tracking-widest uppercase">Cloud Status</span>
+                            <div class="flex items-center gap-1.5 text-green-600 font-black text-[0.75em]">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Synchronized
                             </div>
                         </div>
-                        <button @click="handleLogout" class="w-full py-4 bg-slate-50 text-red-500 rounded-2xl font-black text-[0.8em] hover:bg-red-50 transition-all">
+                        <button @click="handleLogout" class="w-full py-4 bg-slate-50 text-red-500 rounded-2xl font-black text-[0.85em] active:scale-95 transition-all">
                             {{ t('logout_btn') }}
                         </button>
                     </div>
                     <div v-else class="space-y-4">
                         <p class="text-[0.75em] font-bold text-slate-500 leading-relaxed px-1">{{ t('sync_hint') }}</p>
-                        <button @click="showLoginModal = true" class="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-[0.8em] shadow-xl shadow-indigo-100 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
+                        <button @click="showLoginModal = true" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-[0.85em] shadow-md active:scale-95 transition-all flex items-center justify-center gap-2">
                             {{ t('login_start_btn') }}
                         </button>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-[2.5rem] p-8 card-shadow space-y-8 transition-all">
+                <div class="bg-white rounded-[2rem] p-6 card-shadow space-y-7 border border-slate-100">
                     <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700">{{ t('lang_label') }}</span>
-                        <select v-model="settings.lang" class="bg-slate-50 rounded-xl px-4 py-3 font-black text-[0.7em] outline-none border-none ring-1 ring-slate-100"><option value="zh">繁體中文</option><option value="en">English</option></select>
+                        <select v-model="settings.lang" class="bg-slate-50 rounded-xl px-4 py-2.5 font-black text-[1em] outline-none border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-p transition-all"><option value="zh">繁體中文</option><option value="en">English</option></select>
                     </div>
                     <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700">{{ t('theme_label') }}</span>
-                        <div class="flex gap-3"><div v-for="color in ['#4f46e5', '#10b981', '#f43f5e', '#1e293b', '#f59e0b']" @click="settings.themeColor = color" :style="{ backgroundColor: color }" class="w-8 h-8 rounded-full cursor-pointer border-2 shadow-md active:scale-75 transition-all" :class="settings.themeColor === color ? 'border-white ring-2 ring-indigo-200 scale-125' : 'border-transparent'"></div></div>
+                        <div class="flex gap-2.5"><div v-for="color in ['#4f46e5', '#10b981', '#f43f5e', '#1e293b', '#f59e0b']" @click="settings.themeColor = color" :style="{ backgroundColor: color }" class="w-8 h-8 rounded-full cursor-pointer border-2 shadow-sm active:scale-75 transition-all" :class="settings.themeColor === color ? 'border-white ring-2 ring-indigo-200 scale-110' : 'border-transparent'"></div></div>
                     </div>
                     <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700">{{ t('font_label') }}</span>
-                        <div class="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 overflow-hidden"><button v-for="sz in ['small', 'medium', 'large']" :key="sz" @click="settings.fontSize = sz" :style="settings.fontSize === sz ? { backgroundColor: settings.themeColor, color: 'white' } : {}" class="px-4 py-2 text-[0.65em] font-black rounded-lg transition-all">{{ t('font_' + sz) }}</button></div>
+                        <div class="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 overflow-hidden"><button v-for="sz in ['small', 'medium', 'large']" :key="sz" @click="settings.fontSize = sz" :style="settings.fontSize === sz ? { backgroundColor: settings.themeColor, color: 'white' } : {}" class="px-4 py-2 text-[0.75em] font-black rounded-lg transition-all">{{ t('font_' + sz) }}</button></div>
                     </div>
                 </div>
                 <div class="version-watermark">{{ version }}</div>
@@ -456,13 +477,13 @@
         <!-- 登入選單彈窗 -->
         <transition name="fade">
             <div v-if="showLoginModal" class="fixed inset-0 z-[210] flex items-center justify-center p-6">
-                <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md" @click="showLoginModal = false"></div>
-                <div class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in duration-200 text-center">
-                    <h2 class="text-xl font-black text-slate-800 mb-2">登入 LifeTrack</h2>
-                    <p class="text-xs font-bold text-slate-400 mb-8 leading-relaxed">選擇您的登入方式以開始同步</p>
+                <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showLoginModal = false"></div>
+                <div class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in duration-200 text-center">
+                    <h2 class="text-[1.25em] font-black text-slate-800 mb-2">登入 LifeTrack</h2>
+                    <p class="text-[0.75em] font-bold text-slate-400 mb-8 leading-relaxed">選擇您的登入方式以開始同步</p>
                     <div class="space-y-3">
-                        <button @click="handleGoogleLogin" class="w-full py-4 bg-white border-2 border-slate-100 text-slate-700 rounded-2xl font-black text-xs shadow-sm hover:bg-slate-50 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
-                            <svg class="w-4 h-4" viewBox="0 0 24 24">
+                        <button @click="handleGoogleLogin" class="w-full py-4 bg-white border-2 border-slate-100 text-slate-700 rounded-2xl font-black text-[0.85em] shadow-sm active:scale-95 transition-all flex items-center justify-center gap-3">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24">
                                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
@@ -471,135 +492,139 @@
                             使用 Google 帳號連結
                         </button>
                     </div>
-                    <button @click="showLoginModal = false" class="mt-8 text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-slate-400 transition-colors">稍後再說</button>
+                    <button @click="showLoginModal = false" class="mt-8 text-[0.65em] font-black text-slate-300 uppercase tracking-widest hover:text-slate-500 transition-colors py-2 px-4">稍後再說</button>
                 </div>
             </div>
         </transition>
 
-        <!-- 編輯/新增視窗 -->
+        <!-- 編輯/新增視窗 (Mobile Bottom Sheet) -->
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
-                <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
+                <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showAddModal = false"></div>
                 <!-- 綁定手勢事件 -->
-                <div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[96vh] shadow-2xl modal-scrollable overflow-x-hidden" 
+                <div class="relative w-full sm:max-w-md bg-white rounded-t-[2.5rem] p-6 modal-pb max-h-[90vh] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] modal-scrollable overflow-x-hidden" 
                      :class="{ 'modal-transition': !isDraggingModal }" 
                      :style="modalStyle" 
                      @touchstart="handleModalTouchStart" 
                      @touchmove="handleModalTouchMove" 
                      @touchend="handleModalTouchEnd">
                      
-                    <button @click="showAddModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-600 transition-colors z-[110]"><i data-lucide="x" class="w-6 h-6"></i></button>
-                    <!-- 滑動提示條 -->
-                    <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div>
+                    <!-- 頂部拖曳把手 -->
+                    <div class="w-14 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 cursor-grab active:cursor-grabbing"></div>
                     
                     <div class="flex justify-between items-center mb-6 px-1">
-                        <div class="flex items-center gap-2">
-                             <button @click="changeDate(-1)" class="p-1 text-slate-300 hover:text-p active:scale-90 transition-transform"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
-                             <h2 class="text-[1.3em] font-black text-slate-800">{{ currentMonth+1 }}/{{ selectedDay }} {{ t('new_record') }}</h2>
-                             <button @click="changeDate(1)" class="p-1 text-slate-300 hover:text-p active:scale-90 transition-transform"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                        <div class="flex items-center gap-1.5">
+                             <button @click="changeDate(-1)" class="p-2 text-slate-300 hover:text-p hover:bg-indigo-50 rounded-full active:scale-90 transition-all"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                             <h2 class="text-[1.25em] font-black text-slate-800 tabular-nums tracking-tight">{{ currentMonth+1 }}/{{ selectedDay }} <span class="text-[0.85em] text-slate-400 font-bold ml-1">{{ t('new_record') }}</span></h2>
+                             <button @click="changeDate(1)" class="p-2 text-slate-300 hover:text-p hover:bg-indigo-50 rounded-full active:scale-90 transition-all"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                         </div>
-                        <button @click="saveRecord" :style="{ backgroundColor: settings.themeColor }" class="text-white px-10 py-3 rounded-full font-black shadow-xl active:scale-95 transition-all text-[0.8em] mr-8">{{ t('save') }}</button>
+                        <button @click="saveRecord" :style="{ backgroundColor: settings.themeColor }" class="text-white px-8 py-2.5 rounded-full font-black shadow-md active:scale-95 transition-all text-[0.85em]">{{ t('save') }}</button>
                     </div>
 
-                    <!-- 【新增】行事曆區塊 -->
-                    <div class="mb-6">
-                        <div class="flex justify-between items-center mb-3 px-1">
-                            <h3 class="text-[0.85em] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
-                                <i data-lucide="calendar" class="w-4 h-4" :style="{ color: settings.themeColor }"></i>{{ t('calendar') }}
+                    <!-- 行事曆區塊 -->
+                    <div class="mb-6 bg-white border border-slate-100 rounded-3xl p-5 card-shadow">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-[0.85em] font-black text-slate-700 flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-full flex items-center justify-center" :style="{ backgroundColor: settings.themeColor + '15', color: settings.themeColor }"><i data-lucide="calendar" class="w-4 h-4"></i></div>
+                                {{ t('calendar') }}
                             </h3>
-                            <button @click="toggleAddEventForm" class="p-1.5 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-all active:scale-90">
-                                <i data-lucide="plus" class="w-4 h-4 transition-transform" :class="{'rotate-45': isAddingEvent && editingEventIdx === -1}"></i>
+                            <button @click="toggleAddEventForm" class="w-8 h-8 flex items-center justify-center bg-slate-50 rounded-full text-slate-500 hover:bg-slate-200 transition-all active:scale-90">
+                                <i data-lucide="plus" class="w-4 h-4 transition-transform" :class="{'rotate-45 text-red-400': isAddingEvent && editingEventIdx === -1}"></i>
                             </button>
                         </div>
                         
                         <!-- 已建立的活動列表 -->
-                        <div class="space-y-2 mb-3" v-if="form.events && form.events.length > 0">
+                        <div class="space-y-2 mb-4" v-if="form.events && form.events.length > 0">
                             <div v-for="(ev, idx) in form.events" :key="idx" 
-                                 class="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100 relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
+                                 class="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
                                  @touchstart="startEventLongPress(idx)" @touchend="endEventLongPress" 
                                  @mousedown="startEventLongPress(idx)" @mouseup="endEventLongPress">
                                 <div class="absolute left-0 top-0 bottom-0 w-1.5" :style="{ backgroundColor: getEventTypeColor(ev.type) }"></div>
                                 <div class="flex items-center gap-3 pl-3">
                                     <div>
-                                        <p class="text-sm font-black text-slate-800">{{ ev.title }}</p>
-                                        <div class="text-[0.65em] font-bold text-slate-400 mt-0.5 flex items-center flex-wrap gap-1">
-                                            <span>{{ ev.isAllDay ? t('all_day') : (ev.startTime + ' - ' + ev.endTime) }}</span>
-                                            <span v-if="ev.location" @click.stop="openGoogleMaps(ev.location)" class="text-indigo-500 cursor-pointer active:opacity-50 flex items-center bg-indigo-50 px-1.5 py-0.5 rounded hover:underline">
-                                                <i data-lucide="map-pin" class="w-2.5 h-2.5 mr-0.5"></i>{{ ev.location }}
+                                        <p class="text-[0.9em] font-black text-slate-800">{{ ev.title }}</p>
+                                        <div class="text-[0.75em] font-bold text-slate-500 mt-1 flex items-center flex-wrap gap-2">
+                                            <span class="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{{ ev.isAllDay ? t('all_day') : (ev.startTime + ' - ' + ev.endTime) }}</span>
+                                            <span v-if="ev.location" @click.stop="openGoogleMaps(ev.location)" class="text-indigo-600 cursor-pointer active:opacity-50 flex items-center bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                                                <i data-lucide="map-pin" class="w-3 h-3 mr-1"></i>{{ ev.location }}
                                             </span>
                                         </div>
                                     </div>
                                 </div>
-                                <button @click.stop="form.events.splice(idx, 1)" class="p-2 text-slate-300 hover:text-red-400 transition-colors z-10"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                <button @click.stop="form.events.splice(idx, 1)" class="p-2.5 text-slate-300 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors z-10 active:scale-90"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                             </div>
                         </div>
 
                         <!-- 新增/編輯活動表單 -->
-                        <div v-if="isAddingEvent" class="p-4 bg-slate-50 rounded-3xl border border-slate-100 space-y-4 animate-in slide-in-from-top-2">
-                            <input v-model="newEvent.title" type="text" class="w-full bg-white p-3 rounded-xl text-sm font-black outline-none border border-transparent focus:border-indigo-100 shadow-sm transition-all" :placeholder="t('event_title')">
-                            <input v-model="newEvent.location" type="text" class="w-full bg-white p-3 rounded-xl text-sm font-bold outline-none border border-transparent focus:border-indigo-100 shadow-sm transition-all" :placeholder="t('location')">
+                        <div v-if="isAddingEvent" class="p-4 bg-slate-50 rounded-[1.5rem] border border-slate-100 space-y-3 animate-in slide-in-from-top-2">
+                            <input v-model="newEvent.title" type="text" class="w-full bg-white p-3.5 rounded-xl text-[1em] font-black outline-none focus:ring-2 ring-indigo-50 border border-slate-100 shadow-sm transition-all" :placeholder="t('event_title')">
+                            <input v-model="newEvent.location" type="text" class="w-full bg-white p-3.5 rounded-xl text-[1em] font-bold outline-none focus:ring-2 ring-indigo-50 border border-slate-100 shadow-sm transition-all" :placeholder="t('location')">
                             
-                            <div class="flex items-center justify-between bg-white p-3 rounded-xl shadow-sm">
-                                <span class="text-sm font-bold text-slate-600">{{ t('all_day') }}</span>
-                                <label class="relative inline-flex items-center cursor-pointer">
+                            <div class="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
+                                <span class="text-[0.9em] font-bold text-slate-700">{{ t('all_day') }}</span>
+                                <label class="relative inline-flex items-center cursor-pointer active:scale-95 transition-transform">
                                   <input type="checkbox" v-model="newEvent.isAllDay" class="sr-only peer">
                                   <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" :style="newEvent.isAllDay ? { backgroundColor: settings.themeColor } : {}"></div>
                                 </label>
                             </div>
 
                             <div v-if="!newEvent.isAllDay" class="flex gap-3">
-                                <div class="flex-1 bg-white p-3 rounded-xl shadow-sm flex flex-col">
-                                    <span class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">{{ t('start_time') }}</span>
-                                    <input type="time" v-model="newEvent.startTime" class="w-full text-sm font-black outline-none bg-transparent text-slate-700">
+                                <div class="flex-1 bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex flex-col focus-within:ring-2 ring-indigo-50 transition-all">
+                                    <span class="text-[0.75em] text-slate-400 font-bold uppercase mb-1">{{ t('start_time') }}</span>
+                                    <input type="time" v-model="newEvent.startTime" class="w-full text-[1em] font-black outline-none bg-transparent text-slate-700">
                                 </div>
-                                <div class="flex-1 bg-white p-3 rounded-xl shadow-sm flex flex-col">
-                                    <span class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">{{ t('end_time') }}</span>
-                                    <input type="time" v-model="newEvent.endTime" class="w-full text-sm font-black outline-none bg-transparent text-slate-700">
+                                <div class="flex-1 bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex flex-col focus-within:ring-2 ring-indigo-50 transition-all">
+                                    <span class="text-[0.75em] text-slate-400 font-bold uppercase mb-1">{{ t('end_time') }}</span>
+                                    <input type="time" v-model="newEvent.endTime" class="w-full text-[1em] font-black outline-none bg-transparent text-slate-700">
                                 </div>
                             </div>
 
                             <div class="flex gap-2 items-center">
-                                <div class="flex-1 bg-white rounded-xl shadow-sm overflow-hidden flex">
-                                    <select v-model="newEvent.type" class="w-full p-3 text-sm font-bold outline-none bg-transparent text-slate-700">
+                                <div class="flex-1 bg-white rounded-xl border border-slate-100 shadow-sm flex focus-within:ring-2 ring-indigo-50 transition-all">
+                                    <select v-model="newEvent.type" class="w-full p-3.5 text-[1em] font-bold outline-none bg-transparent text-slate-700">
                                         <option v-for="typ in eventTypes" :key="typ.name" :value="typ.name">{{ typ.name }}</option>
                                     </select>
                                 </div>
-                                <button @click="openEditEventTypeModal(newEvent.type)" class="p-3 bg-white shadow-sm rounded-xl flex items-center justify-center active:scale-95 transition-all hover:bg-slate-50" title="編輯類型">
-                                    <div class="w-4 h-4 rounded-full shadow-inner border border-slate-100" :style="{ backgroundColor: getEventTypeColor(newEvent.type) }"></div>
+                                <button @click="openEditEventTypeModal(newEvent.type)" class="w-12 h-12 bg-white border border-slate-100 shadow-sm rounded-xl flex items-center justify-center active:scale-95 transition-all hover:bg-slate-50" title="編輯類型">
+                                    <div class="w-5 h-5 rounded-full shadow-inner border border-slate-100" :style="{ backgroundColor: getEventTypeColor(newEvent.type) }"></div>
                                 </button>
-                                <button @click="openAddEventTypeModal" class="p-3 bg-white shadow-sm text-slate-400 hover:text-slate-600 rounded-xl font-black active:scale-95 transition-all" title="新增類型"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                                <button @click="openAddEventTypeModal" class="w-12 h-12 bg-white border border-slate-100 shadow-sm text-slate-400 hover:text-slate-600 rounded-xl flex items-center justify-center font-black active:scale-95 transition-all" title="新增類型"><i data-lucide="plus" class="w-5 h-5"></i></button>
                             </div>
 
                             <div class="flex gap-2 pt-2">
-                                <button v-if="editingEventIdx !== -1" @click="cancelEditEvent" class="flex-1 text-slate-400 py-3 rounded-xl font-black text-sm shadow-sm bg-white active:scale-95 transition-all">{{ t('cancel') }}</button>
-                                <button @click="addEvent" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-3 rounded-xl font-black text-sm shadow-md active:scale-95 transition-all">
+                                <button v-if="editingEventIdx !== -1" @click="cancelEditEvent" class="flex-1 text-slate-500 py-3.5 rounded-xl font-black text-[0.9em] shadow-sm bg-white border border-slate-200 active:scale-95 transition-all">{{ t('cancel') }}</button>
+                                <button @click="addEvent" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-3.5 rounded-xl font-black text-[0.9em] shadow-md active:scale-95 transition-all">
                                     {{ editingEventIdx !== -1 ? t('save_changes') : t('add_event') }}
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8"><button @click="editTab = 'diary'" :class="editTab === 'diary' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'diary' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_diary') }}</button><button @click="editTab = 'finance'" :class="editTab === 'finance' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'finance' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_finance') }}</button></div>
-                    <div v-if="editTab === 'finance'" class="space-y-8 pb-24">
-                        <div class="space-y-4">
-                            <div v-for="(rec, ridx) in form.records" :key="ridx" class="flex items-center justify-between bg-white p-4 rounded-[1.5rem] card-shadow border border-slate-50 overflow-hidden"><div class="flex items-center min-w-0 flex-1"><div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mr-3 text-[1.25em] shadow-inner">{{ getCategoryIcon(rec?.category) }}</div><div class="min-w-0 flex-1"><p class="text-sm font-black text-slate-800">{{ rec?.category }}</p><p v-if="rec?.note" class="text-[10px] text-slate-400 font-bold truncate pr-4">{{ rec?.note }}</p></div></div><div class="flex items-center gap-3"><span :class="rec?.type === 'income' ? 'text-red-600' : 'text-green-600'" class="font-mono font-black">{{ rec?.type === 'income' ? '+' : '-' }}{{ formatNumber(rec?.amount) }}</span><button @click="form.records.splice(ridx, 1)" class="text-slate-200 hover:text-red-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>
+                    <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-6"><button @click="editTab = 'diary'" :class="editTab === 'diary' ? 'bg-white shadow font-black' : 'text-slate-500 font-bold'" :style="editTab === 'diary' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.85em] rounded-xl transition-all active:scale-95">{{ t('daily_diary') }}</button><button @click="editTab = 'finance'" :class="editTab === 'finance' ? 'bg-white shadow font-black' : 'text-slate-500 font-bold'" :style="editTab === 'finance' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.85em] rounded-xl transition-all active:scale-95">{{ t('daily_finance') }}</button></div>
+                    
+                    <div v-if="editTab === 'finance'" class="space-y-6">
+                        <div class="space-y-3">
+                            <div v-for="(rec, ridx) in form.records" :key="ridx" class="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-100 card-shadow overflow-hidden active:scale-[0.98] transition-all"><div class="flex items-center min-w-0 flex-1"><div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center mr-3 text-[1.25em] shadow-inner shrink-0">{{ getCategoryIcon(rec?.category) }}</div><div class="min-w-0 flex-1"><p class="text-[0.9em] font-black text-slate-800">{{ rec?.category }}</p><p v-if="rec?.note" class="text-[0.75em] text-slate-400 font-bold truncate pr-4 mt-0.5">{{ rec?.note }}</p></div></div><div class="flex items-center gap-3"><span :class="rec?.type === 'income' ? 'text-red-600' : 'text-green-600'" class="font-mono font-black text-[0.9em]">{{ rec?.type === 'income' ? '+' : '-' }}{{ formatNumber(rec?.amount) }}</span><button @click="form.records.splice(ridx, 1)" class="text-slate-300 hover:text-red-400 hover:bg-red-50 p-2 rounded-full transition-colors active:scale-90"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>
                         </div>
-                        <div class="p-6 bg-slate-50/80 rounded-[2.5rem] border border-slate-200 space-y-6">
-                            <div class="flex justify-between items-center px-1"><span class="text-[10px] font-black text-slate-400 tracking-widest uppercase">{{ t('add_new_line') }}</span><div class="flex bg-white p-1 rounded-full shadow-sm text-[9px] font-black border border-slate-100 overflow-hidden"><button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-green-600 text-white shadow-md' : 'text-slate-400'" class="px-6 py-2.5 transition-all">{{ t('expense_short') }}</button><button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-red-500 text-white shadow-md' : 'text-red-500'" class="px-6 py-2.5 transition-all">{{ t('income_short') }}</button></div></div>
+                        <div class="p-6 bg-slate-50/80 rounded-[2rem] border border-slate-100 space-y-6">
+                            <div class="flex justify-between items-center px-1"><span class="text-[0.75em] font-black text-slate-500 tracking-widest uppercase">{{ t('add_new_line') }}</span><div class="flex bg-white p-1 rounded-full shadow-sm text-[0.75em] font-black border border-slate-100 overflow-hidden"><button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-green-600 text-white shadow-md' : 'text-slate-400'" class="px-5 py-2 rounded-full transition-all active:scale-95">{{ t('expense_short') }}</button><button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-red-500 text-white shadow-md' : 'text-slate-400'" class="px-5 py-2 rounded-full transition-all active:scale-95">{{ t('income_short') }}</button></div></div>
                             <div class="grid grid-cols-4 gap-3">
-                                <button v-for="cat in currentCategories" :key="cat?.name" @click="newRecord.category = cat.name" @touchstart="startCategoryLongPress(cat)" @touchend="endCategoryLongPress" @mousedown="startCategoryLongPress(cat)" @mouseup="endCategoryLongPress" :class="newRecord.category === cat?.name ? 'ring-4 ring-indigo-100 bg-white scale-105 shadow-sm' : 'bg-white/40 opacity-70'" class="category-btn transition-all"><span class="text-xl mb-1">{{ cat?.icon }}</span><span class="text-[0.6em] font-black truncate w-full text-center">{{ cat?.name }}</span></button>
-                                <button @click="showAddCategory = true" class="category-btn bg-white/40 border border-dashed border-slate-300 active:scale-90 flex items-center justify-center"><i data-lucide="plus" class="w-6 h-6 text-slate-300"></i></button>
+                                <button v-for="cat in currentCategories" :key="cat?.name" @click="newRecord.category = cat.name" @touchstart="startCategoryLongPress(cat)" @touchend="endCategoryLongPress" @mousedown="startCategoryLongPress(cat)" @mouseup="endCategoryLongPress" :class="newRecord.category === cat?.name ? 'ring-2 ring-p bg-white scale-105 shadow-md' : 'bg-white border border-slate-100 shadow-sm'" class="category-btn py-3 transition-all"><span class="text-[1.5em] mb-1.5">{{ cat?.icon }}</span><span class="text-[0.75em] font-black truncate w-full text-center text-slate-600">{{ cat?.name }}</span></button>
+                                <button @click="showAddCategory = true" class="category-btn bg-transparent border-2 border-dashed border-slate-300 active:scale-90 flex items-center justify-center hover:bg-slate-100"><i data-lucide="plus" class="w-6 h-6 text-slate-400"></i></button>
                             </div>
-                            <div class="flex gap-3 items-center w-full"><div class="w-[30%] shrink-0"><input type="number" v-model="newRecord.amount" class="w-full bg-white p-4 rounded-2xl outline-none font-black text-[1em] border-none shadow-inner text-center" :placeholder="t('amount_ph')"></div><div class="w-[70%] shrink-0"><input type="text" v-model="newRecord.note" class="w-full bg-white p-4 rounded-2xl outline-none font-bold text-[0.85em] border-none shadow-inner" :placeholder="t('note_ph')"></div></div>
-                            <button @click="addNewRecord" :style="{ backgroundColor: settings.themeColor }" class="w-full text-white py-5 rounded-2xl font-black text-[0.85em] shadow-xl active:scale-[0.98] transition-all">{{ t('add_to_list') }}</button>
+                            <div class="flex gap-3 items-center w-full">
+                                <div class="w-1/3 shrink-0"><input type="number" v-model="newRecord.amount" class="w-full bg-white p-3.5 rounded-xl outline-none font-black text-[1em] border border-slate-100 shadow-sm text-center focus:ring-2 ring-indigo-50 transition-all" :placeholder="t('amount_ph')"></div>
+                                <div class="flex-1 min-w-0"><input type="text" v-model="newRecord.note" class="w-full bg-white p-3.5 rounded-xl outline-none font-bold text-[1em] border border-slate-100 shadow-sm focus:ring-2 ring-indigo-50 transition-all" :placeholder="t('note_ph')"></div>
+                            </div>
+                            <button @click="addNewRecord" :style="{ backgroundColor: settings.themeColor }" class="w-full text-white py-4 rounded-xl font-black text-[0.9em] shadow-md active:scale-95 transition-all">{{ t('add_to_list') }}</button>
                         </div>
                     </div>
-                    <div v-if="editTab === 'diary'" class="space-y-8 pb-24 px-1 overflow-x-hidden">
-                        <div class="flex items-center justify-between bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100"><div class="flex items-center"><div class="w-12 h-12 rounded-2xl bg-white shadow-md flex items-center justify-center mr-4" :class="{'recording-pulse': isRecording}"><i data-lucide="mic" class="w-6 h-6" :class="isRecording ? 'text-red-500' : 'text-p'"></i></div><div class="flex flex-col"><span class="text-xs font-black">{{ isRecording ? t('recording') : (form.audio ? t('recorded') : t('voice_memo')) }}</span><span class="text-[0.6em] text-slate-400 font-bold uppercase tracking-widest">Voice Note</span></div></div><div class="flex gap-2"><button v-if="!isRecording" @click="startRecording" class="p-3 bg-p text-white rounded-xl shadow-lg active:scale-90 transition-all"><i data-lucide="play" class="w-4 h-4 fill-current text-white"></i></button><button v-else @click="stopRecording" class="p-3 bg-red-500 text-white rounded-xl shadow-lg animate-pulse"><i data-lucide="square" class="w-4 h-4 fill-current text-white"></i></button><button v-if="form.audio && !isRecording" @click="playAudio(form.audio)" class="p-3 bg-indigo-100 text-p rounded-xl active:scale-90"><i data-lucide="volume-2" class="w-4 h-4"></i></button></div></div>
-                        <div class="space-y-4"><label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest px-1">{{ t('journal_feeling') }}</label><div class="flex gap-2.5 px-1 overflow-x-auto hide-scrollbar"><button v-for="f in ['😊','😔','😡','🤩','😴','💪','🍷','🏢','✈️']" :key="f" @click="form.feeling = f" :class="form.feeling === f ? 'scale-125 ring-2 ring-orange-200 bg-white' : 'opacity-40'" class="text-[1.5em] p-2 rounded-xl transition-all">{{ f }}</button></div></div>
-                        <div class="space-y-4"><div class="flex justify-between items-center px-1"><label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ t('photo') }} ({{ form.photos?.length || 0 }}/10)</label><div class="relative p-3 bg-slate-100 rounded-2xl active:scale-90 transition-all"><i data-lucide="camera" class="w-5 h-5 text-slate-500"></i><input type="file" multiple @change="handleMultiPhotoUpload" class="absolute inset-0 opacity-0 cursor-pointer"></div></div><div v-if="form.photos?.length" class="flex gap-3 overflow-x-auto py-2 hide-scrollbar"><div v-for="(img, idx) in form.photos" :key="idx" class="relative shrink-0"><img :src="img" class="photo-thumb"><button @click="form.photos.splice(idx, 1)" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg"><i data-lucide="x" class="w-3 h-3 text-white"></i></button></div></div></div>
-                        <div class="space-y-4"><div class="flex justify-between items-center px-1"><label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest">{{ t('location_map') }}</label><button @click="openGoogleMapsSearch" class="px-5 py-2 bg-indigo-50 text-p rounded-full text-[0.6em] font-black active:scale-90 transition-all border border-indigo-100">{{ t('search_on_map') }}</button></div><div class="flex gap-3"><input v-model="locationSearch" @keyup.enter="addLocation" :placeholder="t('location_ph')" class="flex-1 bg-slate-50 p-4 rounded-2xl text-[0.85em] font-bold outline-none border-2 border-transparent focus:border-p transition-all shadow-inner"><button @click="addLocation" class="bg-p text-white w-14 rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><i data-lucide="plus" class="w-6 h-6 text-white"></i></button></div><div class="space-y-2"><div v-for="(loc, lidx) in form.locations" :key="lidx" class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 card-shadow animate-in slide-in-from-bottom"><div class="flex items-center text-[0.85em] font-black text-indigo-700 cursor-pointer" @click="openGoogleMaps(loc?.name)"><i data-lucide="map-pin" class="w-4 h-4 mr-3 opacity-50"></i><span>{{ loc?.name }}</span></div><button @click="form.locations.splice(lidx, 1)" class="text-red-300 p-2 hover:text-red-500 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div></div>
-                        <textarea v-model="form.diaryText" class="w-full h-48 bg-slate-50 p-6 rounded-[2.5rem] border-none outline-none focus:ring-4 ring-indigo-50 shadow-inner text-[0.9em] font-bold leading-relaxed" :placeholder="t('journal_placeholder')"></textarea>
+                    <div v-if="editTab === 'diary'" class="space-y-6">
+                        <div class="flex items-center justify-between bg-slate-50 p-4 rounded-3xl border border-slate-100"><div class="flex items-center"><div class="w-12 h-12 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center mr-4" :class="{'recording-pulse': isRecording}"><i data-lucide="mic" class="w-5 h-5" :class="isRecording ? 'text-red-500' : 'text-p'"></i></div><div class="flex flex-col"><span class="text-[0.85em] font-black text-slate-800">{{ isRecording ? t('recording') : (form.audio ? t('recorded') : t('voice_memo')) }}</span><span class="text-[0.75em] text-slate-400 font-bold mt-0.5">Voice Note</span></div></div><div class="flex gap-2"><button v-if="!isRecording" @click="startRecording" class="w-12 h-12 flex items-center justify-center bg-p text-white rounded-2xl shadow-md active:scale-90 transition-all"><i data-lucide="play" class="w-4 h-4 fill-current text-white ml-0.5"></i></button><button v-else @click="stopRecording" class="w-12 h-12 flex items-center justify-center bg-red-500 text-white rounded-2xl shadow-md animate-pulse"><i data-lucide="square" class="w-4 h-4 fill-current text-white"></i></button><button v-if="form.audio && !isRecording" @click="playAudio(form.audio)" class="w-12 h-12 flex items-center justify-center bg-indigo-50 text-p rounded-2xl active:scale-90 border border-indigo-100"><i data-lucide="volume-2" class="w-5 h-5"></i></button></div></div>
+                        <div class="space-y-3 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm"><label class="text-[0.75em] font-black text-slate-500 uppercase tracking-widest block mb-2">{{ t('journal_feeling') }}</label><div class="flex gap-3 overflow-x-auto hide-scrollbar pb-2"><button v-for="f in ['😊','😔','😡','🤩','😴','💪','🍷','🏢','✈️']" :key="f" @click="form.feeling = f" :class="form.feeling === f ? 'scale-110 ring-2 ring-orange-200 bg-orange-50 shadow-sm' : 'opacity-60 bg-slate-50'" class="text-[1.5em] w-12 h-12 shrink-0 flex items-center justify-center rounded-2xl transition-all active:scale-95">{{ f }}</button></div></div>
+                        <div class="space-y-3 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm"><div class="flex justify-between items-center"><label class="text-[0.75em] font-black text-slate-500 uppercase tracking-widest">{{ t('photo') }} ({{ form.photos?.length || 0 }}/10)</label><div class="relative w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center active:scale-90 transition-all hover:bg-slate-100"><i data-lucide="camera" class="w-4 h-4 text-slate-500"></i><input type="file" multiple @change="handleMultiPhotoUpload" class="absolute inset-0 opacity-0 cursor-pointer"></div></div><div v-if="form.photos?.length" class="flex gap-3 overflow-x-auto py-2 hide-scrollbar"><div v-for="(img, idx) in form.photos" :key="idx" class="relative shrink-0"><img :src="img" class="w-20 h-20 rounded-2xl object-cover shadow-sm border border-slate-100"><button @click="form.photos.splice(idx, 1)" class="absolute -top-2 -right-2 bg-slate-800/80 backdrop-blur text-white rounded-full p-1.5 shadow-lg active:scale-90"><i data-lucide="x" class="w-3 h-3 text-white"></i></button></div></div></div>
+                        <div class="space-y-4 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm"><div class="flex justify-between items-center"><label class="text-[0.75em] font-black text-slate-500 uppercase tracking-widest">{{ t('location_map') }}</label><button @click="openGoogleMapsSearch" class="px-4 py-1.5 bg-indigo-50 text-p rounded-lg text-[0.75em] font-black active:scale-95 transition-all border border-indigo-100 flex items-center gap-1.5"><i data-lucide="map" class="w-3 h-3"></i>{{ t('search_on_map') }}</button></div><div class="flex gap-2"><input v-model="locationSearch" @keyup.enter="addLocation" :placeholder="t('location_ph')" class="flex-1 bg-slate-50 p-3.5 rounded-xl text-[1em] font-bold outline-none border border-transparent focus:border-p transition-all focus:bg-white focus:shadow-sm"><button @click="addLocation" class="bg-p text-white w-14 rounded-xl flex items-center justify-center shadow-md active:scale-90 transition-all"><i data-lucide="plus" class="w-5 h-5 text-white"></i></button></div><div class="space-y-2"><div v-for="(loc, lidx) in form.locations" :key="lidx" class="flex justify-between items-center bg-slate-50 p-3.5 rounded-xl border border-slate-100 active:scale-[0.98] transition-all"><div class="flex items-center text-[0.9em] font-black text-slate-700 cursor-pointer" @click="openGoogleMaps(loc?.name)"><div class="w-8 h-8 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center mr-3"><i data-lucide="map-pin" class="w-4 h-4 text-p"></i></div><span>{{ loc?.name }}</span></div><button @click="form.locations.splice(lidx, 1)" class="text-slate-400 p-2 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div></div>
+                        <textarea v-model="form.diaryText" class="w-full h-48 bg-white p-5 rounded-3xl border border-slate-100 outline-none focus:ring-2 ring-indigo-50 shadow-sm text-[1em] font-bold leading-relaxed transition-all" :placeholder="t('journal_placeholder')"></textarea>
                     </div>
                 </div>
             </div>
@@ -608,30 +633,30 @@
         <!-- 新增/編輯行事曆類型跳窗 -->
         <transition name="fade">
             <div v-if="showEventTypeModal" class="fixed inset-0 z-[220] flex items-center justify-center p-6">
-                <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showEventTypeModal = false"></div>
-                <div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in">
+                <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showEventTypeModal = false"></div>
+                <div class="relative w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-2xl animate-in zoom-in">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-[1.25em] font-black text-slate-800">{{ isEditingEventType ? t('edit_event_type') : t('add_event_type') }}</h3>
-                        <button v-if="isEditingEventType" @click="deleteEventType" class="p-2 text-red-400 hover:bg-red-50 rounded-full transition-colors" title="刪除類型"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                        <button v-if="isEditingEventType" @click="deleteEventType" class="p-2.5 text-red-400 bg-red-50 hover:bg-red-100 rounded-full transition-colors active:scale-90" title="刪除類型"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                     </div>
                     <div class="space-y-6">
-                        <input v-model="newEventType.name" type="text" class="w-full bg-slate-50 p-4 rounded-2xl outline-none font-bold border-none shadow-inner text-[0.9em]" :placeholder="t('cat_name_ph')">
+                        <input v-model="newEventType.name" type="text" class="w-full bg-slate-50 p-4 rounded-xl outline-none font-bold border border-slate-100 focus:border-p focus:bg-white text-[1em] transition-all" :placeholder="t('cat_name_ph')">
                         
                         <div>
-                            <p class="text-[0.7em] font-black text-slate-400 uppercase mb-3">選擇顏色</p>
-                            <div class="flex gap-3 flex-wrap">
+                            <p class="text-[0.75em] font-black text-slate-500 uppercase mb-4 tracking-widest">選擇顏色</p>
+                            <div class="flex gap-4 flex-wrap justify-start">
                                 <div v-for="color in ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#14b8a6', '#f43f5e', '#84cc16']" 
                                      @click="newEventType.color = color" 
                                      :style="{ backgroundColor: color }" 
-                                     class="w-8 h-8 rounded-full cursor-pointer border-2 shadow-sm transition-all" 
-                                     :class="newEventType.color === color ? 'border-white ring-2 ring-indigo-300 scale-110' : 'border-transparent'">
+                                     class="w-10 h-10 rounded-full cursor-pointer border-2 shadow-sm transition-all active:scale-90" 
+                                     :class="newEventType.color === color ? 'border-white ring-2 ring-indigo-300 scale-110 shadow-md' : 'border-transparent'">
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="flex gap-4 pt-2">
-                            <button @click="showEventTypeModal = false" class="flex-1 py-4 rounded-2xl font-black text-slate-400 text-[0.8em]">{{ t('cancel') }}</button>
-                            <button @click="saveEventType" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 text-[0.8em]">{{ t('confirm') }}</button>
+                        <div class="flex gap-3 pt-4">
+                            <button @click="showEventTypeModal = false" class="flex-1 py-4 bg-slate-50 rounded-xl font-black text-slate-500 text-[0.9em] active:scale-95 transition-all">{{ t('cancel') }}</button>
+                            <button @click="saveEventType" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-xl font-black shadow-md active:scale-95 text-[0.9em] transition-all">{{ t('confirm') }}</button>
                         </div>
                     </div>
                 </div>
@@ -639,13 +664,23 @@
         </transition>
 
         <!-- 明細跳窗 -->
-        <transition name="fade"><div v-if="showCategoryDetailModal" class="fixed inset-0 z-[120] flex items-end justify-center"><div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showCategoryDetailModal = false"></div><div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[85vh] shadow-2xl modal-scrollable overflow-x-hidden" :class="{ 'modal-transition': !isDraggingModal }" :style="modalStyle" @touchstart="handleModalTouchStart" @touchmove="handleModalTouchMove" @touchend="handleModalTouchEnd"><button @click="showCategoryDetailModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-600 transition-colors z-[110]"><i data-lucide="x" class="w-6 h-6"></i></button><div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div><div class="flex items-center gap-3 mb-6 px-2"><div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[1.5em]">{{ selectedCategoryForDetail?.icon || '?' }}</div><h2 class="text-[1.5em] font-black text-slate-800">{{ selectedCategoryForDetail?.name }} {{ t('new_record') }}</h2></div><div class="space-y-4 pb-12"><div v-for="(item, idx) in categoryDetailRecords" :key="idx" @click="jumpToEdit(item.date, item.originalIndex)" class="flex justify-between items-center bg-slate-50 p-4 rounded-[1.5rem] cursor-pointer hover:bg-slate-100 transition-all"><div class="flex flex-col"><span class="text-[0.7em] font-bold text-slate-400 uppercase tracking-widest">{{ item.date }}</span><span class="text-[0.9em] font-black text-slate-700 truncate w-48">{{ item.record.note || '---' }}</span></div><div class="flex items-center gap-4"><span class="font-mono font-black text-[1.1em]" :class="item.record.type==='income'?'text-red-500':'text-green-600'">{{ item.record.type==='income'?'+':'-' }}{{ formatNumber(item.record.amount) }}</span><button @click.stop="deleteSpecificRecord(item.date, item.originalIndex)" class="text-slate-300 hover:text-red-500 transition-colors p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div><div v-if="categoryDetailRecords.length === 0" class="text-center py-12 text-slate-300 font-bold">目前無此類別資料</div></div></div></div></transition>
-        <transition name="fade"><div v-if="showEditStockModal" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showEditStockModal = false"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-xl font-black mb-6 text-slate-800">編輯投資項目</h3><div class="space-y-4"><div class="p-4 bg-slate-50 rounded-2xl"><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">股票名稱</p><p class="font-black text-p">{{ editingStock?.name || '---' }}</p></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">股數</p><input v-model.number="editingStock.qty" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">成本</p><input v-model.number="editingStock.buyPrice" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div></div><div class="flex gap-4 pt-4"><button @click="showEditStockModal = false" class="flex-1 py-4 rounded-2xl font-black text-slate-400">{{ t('cancel') }}</button><button @click="confirmEditStock" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95">更新</button></div></div></div></div></transition>
-        <transition name="fade"><div v-if="showAddCategory || showEditCategory" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeCategoryModal"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-[1.25em] font-black mb-8 text-slate-800">{{ showEditCategory ? t('edit_cat_title') : t('custom_cat_title') }}</h3><div class="space-y-8"><div class="grid grid-cols-5 gap-3 max-h-48 overflow-y-auto p-1 hide-scrollbar"><button v-for="ico in iconPool" :key="ico" @click="categoryForm.icon = ico" :class="categoryForm.icon === ico ? 'bg-indigo-100 ring-4 ring-indigo-200' : 'bg-slate-50'" class="text-[1.5em] p-3 rounded-2xl transition-all flex items-center justify-center">{{ ico }}</button></div><input v-model="categoryForm.name" type="text" class="w-full bg-slate-50 p-5 rounded-3xl outline-none font-bold border-none shadow-inner text-[0.9em]" :placeholder="t('cat_name_ph')"><div class="flex gap-4 pt-4"><button @click="closeCategoryModal" class="flex-1 py-5 rounded-2xl font-black text-slate-400 text-[0.8em]">{{ t('cancel') }}</button><button @click="confirmCategoryAction" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 text-[0.8em]">{{ t('confirm') }}</button></div></div></div></div></transition>
+        <transition name="fade"><div v-if="showCategoryDetailModal" class="fixed inset-0 z-[120] flex items-end justify-center"><div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showCategoryDetailModal = false"></div><div class="relative w-full sm:max-w-md bg-white rounded-t-[2.5rem] p-6 modal-pb max-h-[85vh] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] modal-scrollable overflow-x-hidden" :class="{ 'modal-transition': !isDraggingModal }" :style="modalStyle" @touchstart="handleModalTouchStart" @touchmove="handleModalTouchMove" @touchend="handleModalTouchEnd"><button @click="showCategoryDetailModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:bg-slate-100 rounded-full transition-all active:scale-90 z-[110]"><i data-lucide="x" class="w-5 h-5"></i></button><div class="w-14 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 cursor-grab"></div><div class="flex items-center gap-4 mb-6 px-1"><div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-[1.5em] shadow-sm border border-slate-100">{{ selectedCategoryForDetail?.icon || '?' }}</div><h2 class="text-[1.25em] font-black text-slate-800 tracking-tight">{{ selectedCategoryForDetail?.name }}</h2></div><div class="space-y-3 pb-8"><div v-for="(item, idx) in categoryDetailRecords" :key="idx" @click="jumpToEdit(item.date, item.originalIndex)" class="flex justify-between items-center bg-white border border-slate-100 shadow-sm p-4 rounded-2xl cursor-pointer hover:bg-slate-50 active:scale-[0.98] transition-all"><div class="flex flex-col"><span class="text-[0.65em] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{{ item.date }}</span><span class="text-[0.9em] font-black text-slate-700 truncate w-48">{{ item.record.note || '---' }}</span></div><div class="flex items-center gap-3"><span class="font-mono font-black text-[1em]" :class="item.record.type==='income'?'text-red-500':'text-green-600'">{{ item.record.type==='income'?'+':'-' }}{{ formatNumber(item.record.amount) }}</span><button @click.stop="deleteSpecificRecord(item.date, item.originalIndex)" class="text-slate-300 hover:bg-red-50 hover:text-red-500 p-2 rounded-full transition-colors active:scale-90"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div><div v-if="categoryDetailRecords.length === 0" class="text-center py-16 text-slate-400 font-bold text-[0.85em] bg-slate-50 rounded-3xl border border-slate-100 border-dashed">目前無此類別資料</div></div></div></div></transition>
+        <transition name="fade"><div v-if="showEditStockModal" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showEditStockModal = false"></div><div class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in"><h3 class="text-[1.25em] font-black mb-6 text-slate-800">編輯投資項目</h3><div class="space-y-5"><div class="p-4 bg-slate-50 rounded-2xl border border-slate-100"><p class="text-[0.75em] text-slate-400 font-bold uppercase mb-1 tracking-widest">股票名稱</p><p class="font-black text-p text-[1em]">{{ editingStock?.name || '---' }}</p></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[0.75em] text-slate-400 font-bold uppercase mb-2 px-1 tracking-widest">股數</p><input v-model.number="editingStock.qty" type="number" class="w-full bg-slate-50 border border-slate-100 p-3.5 rounded-xl font-black outline-none focus:bg-white focus:ring-2 ring-p transition-all text-center text-[1em]"></div><div><p class="text-[0.75em] text-slate-400 font-bold uppercase mb-2 px-1 tracking-widest">成本</p><input v-model.number="editingStock.buyPrice" type="number" class="w-full bg-slate-50 border border-slate-100 p-3.5 rounded-xl font-black outline-none focus:bg-white focus:ring-2 ring-p transition-all text-center text-[1em]"></div></div><div class="flex gap-3 pt-3"><button @click="showEditStockModal = false" class="flex-1 bg-slate-50 py-4 rounded-xl font-black text-slate-500 active:scale-95 transition-all text-[0.9em]">{{ t('cancel') }}</button><button @click="confirmEditStock" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-xl font-black shadow-md active:scale-95 transition-all text-[0.9em]">更新</button></div></div></div></div></transition>
+        <transition name="fade"><div v-if="showAddCategory || showEditCategory" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="closeCategoryModal"></div><div class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in"><h3 class="text-[1.25em] font-black mb-6 text-slate-800">{{ showEditCategory ? t('edit_cat_title') : t('custom_cat_title') }}</h3><div class="space-y-6"><div class="grid grid-cols-5 gap-2.5 max-h-48 overflow-y-auto p-1 hide-scrollbar"><button v-for="ico in iconPool" :key="ico" @click="categoryForm.icon = ico" :class="categoryForm.icon === ico ? 'bg-indigo-50 ring-2 ring-p shadow-sm scale-110 z-10' : 'bg-slate-50 opacity-70'" class="text-[1.5em] w-12 h-12 flex items-center justify-center rounded-2xl transition-all active:scale-95">{{ ico }}</button></div><input v-model="categoryForm.name" type="text" class="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl outline-none font-black focus:bg-white focus:ring-2 ring-p transition-all text-[1em]" :placeholder="t('cat_name_ph')"><div class="flex gap-3 pt-2"><button @click="closeCategoryModal" class="flex-1 py-4 bg-slate-50 rounded-xl font-black text-slate-500 text-[0.9em] active:scale-95 transition-all">{{ t('cancel') }}</button><button @click="confirmCategoryAction" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-xl font-black shadow-md active:scale-95 transition-all text-[0.9em]">{{ t('confirm') }}</button></div></div></div></div></transition>
 
-        <!-- 底部導覽列 -->
-        <nav class="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-2xl border-t border-slate-100 h-24 tab-bar z-40 px-3 flex items-center shadow-lg shrink-0">
-            <div class="flex w-full items-center justify-around"><button v-for="v in ['ledger', 'stocks', 'add', 'charts', 'settings']" :key="v" @click="v === 'add' ? openAddModal() : (currentView = v)" :style="(currentView === v && v !== 'add') ? { color: settings.themeColor } : {}" class="flex flex-col items-center transition-all flex-1" :class="[currentView === v ? 'nav-active scale-110' : 'text-slate-300', v === 'add' ? 'relative' : '']"><template v-if="v === 'add'"><div :style="{ backgroundColor: settings.themeColor }" class="text-white w-16 h-16 rounded-[2.2rem] shadow-xl border-[6px] border-white flex items-center justify-center -translate-y-8 active:scale-90 transition-all hover:rotate-90"><i data-lucide="plus" class="w-8 h-8"></i></div></template><template v-else><i :data-lucide="v === 'ledger' ? 'calendar' : (v === 'stocks' ? 'trending-up' : (v === 'charts' ? 'pie-chart' : 'settings'))" class="w-6 h-6"></i><span class="text-[0.6em] mt-1.5 uppercase font-black tracking-tighter">{{ t(v) }}</span></template></button></div>
+        <!-- 底部導覽列 (Mobile Nav) -->
+        <nav class="absolute bottom-0 left-0 right-0 bg-white/85 backdrop-blur-xl border-t border-slate-200/50 nav-pb z-40 px-2 flex items-center justify-around shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.06)] shrink-0">
+            <button v-for="v in ['ledger', 'stocks', 'add', 'charts', 'settings']" :key="v" @click="v === 'add' ? openAddModal() : (currentView = v)" :style="(currentView === v && v !== 'add') ? { color: settings.themeColor } : {}" class="flex flex-col items-center justify-center transition-all flex-1 h-full pt-1" :class="[currentView === v ? 'nav-active scale-105' : 'text-slate-400', v === 'add' ? 'relative' : 'active:scale-90']">
+                <template v-if="v === 'add'">
+                    <div :style="{ backgroundColor: settings.themeColor }" class="text-white w-14 h-14 rounded-full shadow-lg border-4 border-white flex items-center justify-center -translate-y-5 active:scale-90 transition-transform">
+                        <i data-lucide="plus" class="w-7 h-7"></i>
+                    </div>
+                </template>
+                <template v-else>
+                    <i :data-lucide="v === 'ledger' ? 'calendar' : (v === 'stocks' ? 'trending-up' : (v === 'charts' ? 'pie-chart' : 'settings'))" class="w-5 h-5 mb-1.5 transition-transform" :class="{'stroke-[3px]': currentView === v}"></i>
+                    <span class="text-[0.55em] uppercase font-black tracking-tight" :class="{'opacity-100': currentView === v, 'opacity-80': currentView !== v}">{{ t(v) }}</span>
+                </template>
+            </button>
         </nav>
     </div>
 </div>
@@ -656,7 +691,7 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 createApp({
     setup() {
         // --- 1. Phase 1: 常數與 Firebase 初始化 ---
-        const appVersion = "v1.3.10";
+        const appVersion = "v1.4.1";
         
         let firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
         let firebaseConfig;
@@ -711,7 +746,7 @@ createApp({
         const showEditCategory = ref(false);
         const showEditStockModal = ref(false);
         
-        // --- 新增行事曆相關狀態 ---
+        // --- 行事曆相關狀態 ---
         const showEventTypeModal = ref(false);
         const isEditingEventType = ref(false);
         const editingEventTypeOriginalName = ref('');
@@ -827,38 +862,39 @@ createApp({
         function getCategoryIcon(n) { return categories.value.find(c => c.name === n)?.icon || '❓'; }
         function getPhotoGridClass(c) { return c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48'); }
 
-        // 多重代理保護機制 (強化驗證，避免回傳空殼假裝成功)
+        // 多重代理保護機制
         async function safeFetch(url, isAllOriginsJson = false) {
+            const encodedUrl = encodeURIComponent(url);
             const proxies = [
-                u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-                u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-                u => `https://corsproxy.io/?${encodeURIComponent(u)}`
+                u => `https://corsproxy.io/?${u}`,
+                u => `https://api.allorigins.win/get?url=${u}`,
+                u => `https://api.codetabs.com/v1/proxy?quest=${u}`
             ];
             
             for (const p of proxies) {
                 try {
-                    const proxyUrl = p(url);
+                    const proxyUrl = p(encodedUrl);
                     const res = await fetch(proxyUrl);
                     if (!res.ok) continue;
                     
                     if (proxyUrl.includes('allorigins')) {
                         const wrapper = await res.json();
-                        if (isAllOriginsJson) {
-                            const parsed = JSON.parse(wrapper.contents);
-                            if (!parsed) throw new Error('Empty contents');
-                            return parsed;
-                        }
-                        return wrapper.contents;
+                        return isAllOriginsJson ? JSON.parse(wrapper.contents) : wrapper.contents;
                     } else {
-                        const data = await res.json();
-                        if (url.includes('yahoo') && !data?.quoteResponse && !data?.quotes) throw new Error('Invalid Yahoo data');
-                        return data;
+                        return await res.json();
                     }
-                } catch(e) {
-                    console.warn('Proxy fallback triggered');
-                }
+                } catch(e) {}
             }
             throw new Error('All proxies failed');
+        }
+
+        // 直接抓取 OpenAPI (支援 CORS)，若失敗才交給 Proxy
+        async function fetchOpenAPI(url) {
+            try {
+                const res = await fetch(url);
+                if (res.ok) return await res.json();
+            } catch(e) {}
+            return await safeFetch(url, true);
         }
 
         function changeYear(delta) { currentYear.value += delta; }
@@ -875,39 +911,28 @@ createApp({
             if (cachedStockList.value.length > 0 || isStockListLoading.value) return;
             isStockListLoading.value = true;
             try {
-                // 直接向官方抓取最新清單
                 const [tseData, otcData] = await Promise.all([
-                    safeFetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL', true).catch(() => []),
-                    safeFetch('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes', true).catch(() => [])
+                    fetchOpenAPI('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL').catch(() => []),
+                    fetchOpenAPI('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes').catch(() => [])
                 ]);
                 
                 const list = [];
-                // 解析金額字串轉為數字 (去除逗號)
                 const parsePrice = (p) => parseFloat((p || "0").toString().replace(/,/g, ''));
                 
                 if(tseData && tseData.length) {
                     tseData.forEach(item => {
                         if (item.Code && item.Name) {
-                            list.push({ 
-                                id: item.Code, 
-                                name: item.Name.trim(), 
-                                price: parsePrice(item.ClosingPrice || item.OpeningPrice) 
-                            });
+                            list.push({ id: item.Code, name: item.Name.trim(), price: parsePrice(item.ClosingPrice || item.OpeningPrice) });
                         }
                     });
                 }
                 if(otcData && otcData.length) {
                     otcData.forEach(item => {
                         if (item.SecuritiesCompanyCode && item.CompanyName) {
-                            list.push({ 
-                                id: item.SecuritiesCompanyCode, 
-                                name: item.CompanyName.trim(), 
-                                price: parsePrice(item.Close || item.Open) 
-                            });
+                            list.push({ id: item.SecuritiesCompanyCode, name: item.CompanyName.trim(), price: parsePrice(item.Close || item.Open) });
                         }
                     });
                 }
-                
                 if(list.length > 0) cachedStockList.value = list;
             } catch (e) {
                 console.error("Failed to load stock list", e);
@@ -1015,13 +1040,12 @@ createApp({
             }
         }
 
-        // --- 核心優化：四大引擎保底報價機制 (Yahoo -> TWSE -> Yahoo走勢 -> 本地收盤) ---
+        // --- 核心優化：四大引擎保底報價機制 ---
         async function updatePortfolioPrices() {
             if (!stockPortfolio.value.length) return;
             isAILoading.value = true;
             
             try {
-                // 確保 OpenAPI 本地清單已載入 (包含 100% 準確的收盤價作為終極保底)
                 if (cachedStockList.value.length === 0) await loadStockList();
 
                 const syms = stockPortfolio.value.map(s => {
@@ -1041,7 +1065,7 @@ createApp({
 
                 const priceMap = {};
 
-                // 引擎 1：Yahoo Finance API (全球資料庫，優先取得)
+                // 引擎 1：Yahoo Finance API
                 try {
                     const yQuery = syms.map(c => `${c}.TW,${c}.TWO`).join(',');
                     const targetUrl = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${yQuery}`;
@@ -1050,40 +1074,30 @@ createApp({
                     if (yData && yData.quoteResponse && yData.quoteResponse.result) {
                         yData.quoteResponse.result.forEach(item => {
                             const code = item.symbol.split('.')[0];
-                            // 嘗試多種價格屬性
                             const price = item.regularMarketPrice || item.regularMarketPreviousClose || item.ask || item.bid;
-                            if (code && price) {
-                                priceMap[code] = { price: parseFloat(price), name: item.shortName || item.longName || code };
-                            }
+                            if (code && price) priceMap[code] = { price: parseFloat(price), name: item.shortName || item.longName || code };
                         });
                     }
-                } catch(e) {
-                    console.warn("Engine 1 failed");
-                }
+                } catch(e) { console.warn("Engine 1 failed"); }
 
-                // 引擎 2：台灣證交所 MIS API (Yahoo 找不到時備援)
+                // 引擎 2：TWSE MIS API
                 const missingSyms2 = syms.filter(c => !priceMap[c]);
                 if (missingSyms2.length > 0) {
                     try {
                         const queryList = missingSyms2.map(c => `tse_${c}.tw|otc_${c}.tw`).join('|');
                         const targetUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${queryList}&json=1&delay=0&_=${Date.now()}`;
                         const data = await safeFetch(targetUrl, true);
-                        
                         if (data && data.msgArray && data.msgArray.length > 0) {
                             data.msgArray.forEach(item => {
                                 const code = item.c; 
                                 const price = (item.z !== '-' ? item.z : (item.o !== '-' ? item.o : item.y));
-                                if (code && price && price !== '0.00') {
-                                    priceMap[code] = { price: parseFloat(price), name: item.n };
-                                }
+                                if (code && price && price !== '0.00') priceMap[code] = { price: parseFloat(price), name: item.n };
                             });
                         }
-                    } catch(e) {
-                        console.warn("Engine 2 failed");
-                    }
+                    } catch(e) { console.warn("Engine 2 failed"); }
                 }
 
-                // 引擎 3 & 4：結算並強制保底
+                // 結算與引擎 3 保底
                 let updateCount = 0;
                 stockPortfolio.value.forEach(stk => {
                     let id = stk.name.match(/\d+/)?.[0];
@@ -1094,15 +1108,12 @@ createApp({
                     
                     if (id && priceMap[id]) {
                         stk.currentPrice = priceMap[id].price;
-                        // 確保名稱為正確的中文
                         if (priceMap[id].name) {
                             const twseName = `${priceMap[id].name}(${id})`;
                             if (stk.name !== twseName) stk.name = twseName;
                         }
                         updateCount++;
-                    }
-                    // 引擎 4：終極保底 (如果 API 都找不到 009816，直接用官方 OpenAPI 的收盤價)
-                    else if (id) {
+                    } else if (id) {
                         const cachedItem = cachedStockList.value.find(c => c.id === id);
                         if (cachedItem && cachedItem.price > 0) {
                             stk.currentPrice = cachedItem.price;
@@ -1125,7 +1136,7 @@ createApp({
             isAILoading.value = false;
         }
 
-        // --- 行事曆功能函式 ---
+        // --- 行事曆功能 ---
         function getEventTypeColor(name) {
             const type = eventTypes.value.find(t => t.name === name);
             return type ? type.color : '#3b82f6';
@@ -1146,7 +1157,7 @@ createApp({
                 editingEventIdx.value = idx;
                 isAddingEvent.value = true;
                 updateIcons();
-            }, 800); 
+            }, 600); 
         }
         function endEventLongPress() { clearTimeout(eventLongPressTimer); }
         
@@ -1200,11 +1211,8 @@ createApp({
                 const index = eventTypes.value.findIndex(t => t.name === editingEventTypeOriginalName.value);
                 if (index !== -1) eventTypes.value[index] = { ...newEventType.value };
                 
-                if (newEvent.value.type === editingEventTypeOriginalName.value) {
-                    newEvent.value.type = name;
-                }
+                if (newEvent.value.type === editingEventTypeOriginalName.value) newEvent.value.type = name;
 
-                // 同步更新歷史活動名稱
                 if (name !== editingEventTypeOriginalName.value) {
                     Object.keys(entries.value).forEach(dateKey => {
                         if (entries.value[dateKey].events) {
@@ -1257,15 +1265,11 @@ createApp({
             
             searchTimeout = setTimeout(async () => {
                 let results = [];
-                
-                // 1. 優先使用本地快取清單 (超快，支援中英文與代碼)
                 if (cachedStockList.value.length > 0) {
                     results = cachedStockList.value.filter(s => 
                         s.id.includes(query) || s.name.includes(query) || query.includes(s.name)
                     ).slice(0, 10);
                 }
-                
-                // 2. 本地查無結果，嘗試 Yahoo 搜尋備援
                 if (results.length === 0 && !/^\d+$/.test(query)) {
                     try {
                         const yUrl = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&lang=zh-Hant-TW&region=TW&quotesCount=6`;
@@ -1281,12 +1285,9 @@ createApp({
                         }
                     } catch(e) {}
                 }
-                
-                // 3. 保底選項：純數字代碼直接給予加入選項
                 if (results.length === 0 && /^\d+$/.test(query)) {
                     results.push({ name: query, id: query });
                 }
-                
                 stockSuggestions.value = results;
             }, 400);
         }
@@ -1409,7 +1410,7 @@ createApp({
         // --- 5. Phase 5: 生命週期與監聽 ---
         onMounted(() => {
             updateIcons();
-            loadStockList(); // 啟動時自動載入台股名單
+            loadStockList(); 
             if (auth) {
                 fb.onAuthStateChanged(auth, (u) => {
                     user.value = u;
