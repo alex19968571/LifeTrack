@@ -232,14 +232,25 @@
                     <div class="calendar-grid gap-1">
                         <div v-for="empty in firstDayOfMonth" :key="'e'+empty"></div>
                         <div v-for="day in daysInMonth" :key="day" @click="selectedDay = day"
-                            :style="selectedDay === day ? { backgroundColor: settings.themeColor, color: 'white' } : {}"
-                            class="p-2 text-center rounded-xl cursor-pointer transition relative aspect-square flex flex-col items-center justify-center hover:bg-slate-100"
-                            :class="selectedDay === day ? 'shadow-lg scale-105 z-10 font-black' : ''"
+                            class="py-1 text-center rounded-xl cursor-pointer transition relative aspect-square flex flex-col items-center justify-start hover:bg-slate-100"
                         >
-                            <span class="text-[0.85em] font-bold">{{ day }}</span>
-                            <div class="flex flex-col gap-0.5 mt-0.5 items-center w-full px-2">
-                                <div v-if="getDayEntries(day).hasDiary" class="w-full h-[3px] rounded-full bg-yellow-400 opacity-90"></div>
-                                <div v-if="getDayEntries(day).hasFinance" class="w-full h-[3px] rounded-full bg-red-500 opacity-90"></div>
+                            <!-- 數字選取圓圈獨立出來，不包覆下方橫線 -->
+                            <div class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full transition-all shrink-0"
+                                 :style="selectedDay === day ? { backgroundColor: settings.themeColor, color: 'white' } : {}"
+                                 :class="[
+                                     selectedDay === day ? 'shadow-md scale-110 font-black z-10' : 'font-bold',
+                                     selectedDay !== day ? getDayTextColor(day) : ''
+                                 ]">
+                                <span :class="isToday(day) ? 'text-[0.65em] leading-none' : 'text-[0.85em]'" class="relative">
+                                    {{ isToday(day) ? t('today') : day }}
+                                </span>
+                            </div>
+                            
+                            <!-- 行事曆橫線顯示 (最多三條) 改短 (w-4) 且置於底部 -->
+                            <div v-if="getDayEntries(day).events?.length" class="absolute bottom-1.5 flex flex-col gap-[2px] items-center">
+                                <template v-for="(ev, idx) in getDayEntries(day).events.slice(0, 3)" :key="idx">
+                                    <div class="w-4 h-[2.5px] rounded-full opacity-90" :style="{ backgroundColor: getEventTypeColor(ev.type) }"></div>
+                                </template>
                             </div>
                         </div>
                     </div>
@@ -465,7 +476,7 @@
             </div>
         </transition>
 
-        <!-- 編輯/新增視窗 (新增：左右滑動支援) -->
+        <!-- 編輯/新增視窗 -->
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
                 <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showAddModal = false"></div>
@@ -489,6 +500,85 @@
                         </div>
                         <button @click="saveRecord" :style="{ backgroundColor: settings.themeColor }" class="text-white px-10 py-3 rounded-full font-black shadow-xl active:scale-95 transition-all text-[0.8em] mr-8">{{ t('save') }}</button>
                     </div>
+
+                    <!-- 【新增】行事曆區塊 -->
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-3 px-1">
+                            <h3 class="text-[0.85em] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                                <i data-lucide="calendar" class="w-4 h-4" :style="{ color: settings.themeColor }"></i>{{ t('calendar') }}
+                            </h3>
+                            <button @click="toggleAddEventForm" class="p-1.5 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-all active:scale-90">
+                                <i data-lucide="plus" class="w-4 h-4 transition-transform" :class="{'rotate-45': isAddingEvent && editingEventIdx === -1}"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- 已建立的活動列表 -->
+                        <div class="space-y-2 mb-3" v-if="form.events && form.events.length > 0">
+                            <div v-for="(ev, idx) in form.events" :key="idx" 
+                                 class="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100 relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
+                                 @touchstart="startEventLongPress(idx)" @touchend="endEventLongPress" 
+                                 @mousedown="startEventLongPress(idx)" @mouseup="endEventLongPress">
+                                <div class="absolute left-0 top-0 bottom-0 w-1.5" :style="{ backgroundColor: getEventTypeColor(ev.type) }"></div>
+                                <div class="flex items-center gap-3 pl-3">
+                                    <div>
+                                        <p class="text-sm font-black text-slate-800">{{ ev.title }}</p>
+                                        <div class="text-[0.65em] font-bold text-slate-400 mt-0.5 flex items-center flex-wrap gap-1">
+                                            <span>{{ ev.isAllDay ? t('all_day') : (ev.startTime + ' - ' + ev.endTime) }}</span>
+                                            <span v-if="ev.location" @click.stop="openGoogleMaps(ev.location)" class="text-indigo-500 cursor-pointer active:opacity-50 flex items-center bg-indigo-50 px-1.5 py-0.5 rounded hover:underline">
+                                                <i data-lucide="map-pin" class="w-2.5 h-2.5 mr-0.5"></i>{{ ev.location }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button @click.stop="form.events.splice(idx, 1)" class="p-2 text-slate-300 hover:text-red-400 transition-colors z-10"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- 新增/編輯活動表單 -->
+                        <div v-if="isAddingEvent" class="p-4 bg-slate-50 rounded-3xl border border-slate-100 space-y-4 animate-in slide-in-from-top-2">
+                            <input v-model="newEvent.title" type="text" class="w-full bg-white p-3 rounded-xl text-sm font-black outline-none border border-transparent focus:border-indigo-100 shadow-sm transition-all" :placeholder="t('event_title')">
+                            <input v-model="newEvent.location" type="text" class="w-full bg-white p-3 rounded-xl text-sm font-bold outline-none border border-transparent focus:border-indigo-100 shadow-sm transition-all" :placeholder="t('location')">
+                            
+                            <div class="flex items-center justify-between bg-white p-3 rounded-xl shadow-sm">
+                                <span class="text-sm font-bold text-slate-600">{{ t('all_day') }}</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                  <input type="checkbox" v-model="newEvent.isAllDay" class="sr-only peer">
+                                  <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" :style="newEvent.isAllDay ? { backgroundColor: settings.themeColor } : {}"></div>
+                                </label>
+                            </div>
+
+                            <div v-if="!newEvent.isAllDay" class="flex gap-3">
+                                <div class="flex-1 bg-white p-3 rounded-xl shadow-sm flex flex-col">
+                                    <span class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">{{ t('start_time') }}</span>
+                                    <input type="time" v-model="newEvent.startTime" class="w-full text-sm font-black outline-none bg-transparent text-slate-700">
+                                </div>
+                                <div class="flex-1 bg-white p-3 rounded-xl shadow-sm flex flex-col">
+                                    <span class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">{{ t('end_time') }}</span>
+                                    <input type="time" v-model="newEvent.endTime" class="w-full text-sm font-black outline-none bg-transparent text-slate-700">
+                                </div>
+                            </div>
+
+                            <div class="flex gap-2 items-center">
+                                <div class="flex-1 bg-white rounded-xl shadow-sm overflow-hidden flex">
+                                    <select v-model="newEvent.type" class="w-full p-3 text-sm font-bold outline-none bg-transparent text-slate-700">
+                                        <option v-for="typ in eventTypes" :key="typ.name" :value="typ.name">{{ typ.name }}</option>
+                                    </select>
+                                </div>
+                                <button @click="openEditEventTypeModal(newEvent.type)" class="p-3 bg-white shadow-sm rounded-xl flex items-center justify-center active:scale-95 transition-all hover:bg-slate-50" title="編輯類型">
+                                    <div class="w-4 h-4 rounded-full shadow-inner border border-slate-100" :style="{ backgroundColor: getEventTypeColor(newEvent.type) }"></div>
+                                </button>
+                                <button @click="openAddEventTypeModal" class="p-3 bg-white shadow-sm text-slate-400 hover:text-slate-600 rounded-xl font-black active:scale-95 transition-all" title="新增類型"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                            </div>
+
+                            <div class="flex gap-2 pt-2">
+                                <button v-if="editingEventIdx !== -1" @click="cancelEditEvent" class="flex-1 text-slate-400 py-3 rounded-xl font-black text-sm shadow-sm bg-white active:scale-95 transition-all">{{ t('cancel') }}</button>
+                                <button @click="addEvent" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-3 rounded-xl font-black text-sm shadow-md active:scale-95 transition-all">
+                                    {{ editingEventIdx !== -1 ? t('save_changes') : t('add_event') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8"><button @click="editTab = 'diary'" :class="editTab === 'diary' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'diary' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_diary') }}</button><button @click="editTab = 'finance'" :class="editTab === 'finance' ? 'bg-white shadow font-black' : 'text-slate-400 font-bold'" :style="editTab === 'finance' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.8em] rounded-xl transition-all">{{ t('daily_finance') }}</button></div>
                     <div v-if="editTab === 'finance'" class="space-y-8 pb-24">
                         <div class="space-y-4">
@@ -515,6 +605,39 @@
             </div>
         </transition>
 
+        <!-- 新增/編輯行事曆類型跳窗 -->
+        <transition name="fade">
+            <div v-if="showEventTypeModal" class="fixed inset-0 z-[220] flex items-center justify-center p-6">
+                <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showEventTypeModal = false"></div>
+                <div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-[1.25em] font-black text-slate-800">{{ isEditingEventType ? t('edit_event_type') : t('add_event_type') }}</h3>
+                        <button v-if="isEditingEventType" @click="deleteEventType" class="p-2 text-red-400 hover:bg-red-50 rounded-full transition-colors" title="刪除類型"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                    </div>
+                    <div class="space-y-6">
+                        <input v-model="newEventType.name" type="text" class="w-full bg-slate-50 p-4 rounded-2xl outline-none font-bold border-none shadow-inner text-[0.9em]" :placeholder="t('cat_name_ph')">
+                        
+                        <div>
+                            <p class="text-[0.7em] font-black text-slate-400 uppercase mb-3">選擇顏色</p>
+                            <div class="flex gap-3 flex-wrap">
+                                <div v-for="color in ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#14b8a6', '#f43f5e', '#84cc16']" 
+                                     @click="newEventType.color = color" 
+                                     :style="{ backgroundColor: color }" 
+                                     class="w-8 h-8 rounded-full cursor-pointer border-2 shadow-sm transition-all" 
+                                     :class="newEventType.color === color ? 'border-white ring-2 ring-indigo-300 scale-110' : 'border-transparent'">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-4 pt-2">
+                            <button @click="showEventTypeModal = false" class="flex-1 py-4 rounded-2xl font-black text-slate-400 text-[0.8em]">{{ t('cancel') }}</button>
+                            <button @click="saveEventType" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 text-[0.8em]">{{ t('confirm') }}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
         <!-- 明細跳窗 -->
         <transition name="fade"><div v-if="showCategoryDetailModal" class="fixed inset-0 z-[120] flex items-end justify-center"><div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" @click="showCategoryDetailModal = false"></div><div class="relative w-full sm:max-w-md bg-white rounded-t-[3.5rem] p-6 max-h-[85vh] shadow-2xl modal-scrollable overflow-x-hidden" :class="{ 'modal-transition': !isDraggingModal }" :style="modalStyle" @touchstart="handleModalTouchStart" @touchmove="handleModalTouchMove" @touchend="handleModalTouchEnd"><button @click="showCategoryDetailModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-600 transition-colors z-[110]"><i data-lucide="x" class="w-6 h-6"></i></button><div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 cursor-pointer"></div><div class="flex items-center gap-3 mb-6 px-2"><div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[1.5em]">{{ selectedCategoryForDetail?.icon || '?' }}</div><h2 class="text-[1.5em] font-black text-slate-800">{{ selectedCategoryForDetail?.name }} {{ t('new_record') }}</h2></div><div class="space-y-4 pb-12"><div v-for="(item, idx) in categoryDetailRecords" :key="idx" @click="jumpToEdit(item.date, item.originalIndex)" class="flex justify-between items-center bg-slate-50 p-4 rounded-[1.5rem] cursor-pointer hover:bg-slate-100 transition-all"><div class="flex flex-col"><span class="text-[0.7em] font-bold text-slate-400 uppercase tracking-widest">{{ item.date }}</span><span class="text-[0.9em] font-black text-slate-700 truncate w-48">{{ item.record.note || '---' }}</span></div><div class="flex items-center gap-4"><span class="font-mono font-black text-[1.1em]" :class="item.record.type==='income'?'text-red-500':'text-green-600'">{{ item.record.type==='income'?'+':'-' }}{{ formatNumber(item.record.amount) }}</span><button @click.stop="deleteSpecificRecord(item.date, item.originalIndex)" class="text-slate-300 hover:text-red-500 transition-colors p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div><div v-if="categoryDetailRecords.length === 0" class="text-center py-12 text-slate-300 font-bold">目前無此類別資料</div></div></div></div></transition>
         <transition name="fade"><div v-if="showEditStockModal" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showEditStockModal = false"></div><div class="relative w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-2xl animate-in zoom-in"><h3 class="text-xl font-black mb-6 text-slate-800">編輯投資項目</h3><div class="space-y-4"><div class="p-4 bg-slate-50 rounded-2xl"><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1">股票名稱</p><p class="font-black text-p">{{ editingStock?.name || '---' }}</p></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">股數</p><input v-model.number="editingStock.qty" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div><div><p class="text-[0.6em] text-slate-400 font-bold uppercase mb-1 px-1">成本</p><input v-model.number="editingStock.buyPrice" type="number" class="w-full bg-slate-50 p-4 rounded-2xl font-black outline-none shadow-inner text-center"></div></div><div class="flex gap-4 pt-4"><button @click="showEditStockModal = false" class="flex-1 py-4 rounded-2xl font-black text-slate-400">{{ t('cancel') }}</button><button @click="confirmEditStock" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95">更新</button></div></div></div></div></transition>
@@ -533,7 +656,7 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 createApp({
     setup() {
         // --- 1. Phase 1: 常數與 Firebase 初始化 ---
-        const appVersion = "v1.3.4";
+        const appVersion = "v1.3.10";
         
         let firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
         let firebaseConfig;
@@ -588,6 +711,21 @@ createApp({
         const showEditCategory = ref(false);
         const showEditStockModal = ref(false);
         
+        // --- 新增行事曆相關狀態 ---
+        const showEventTypeModal = ref(false);
+        const isEditingEventType = ref(false);
+        const editingEventTypeOriginalName = ref('');
+        const isAddingEvent = ref(false);
+        const editingEventIdx = ref(-1);
+        let eventLongPressTimer = null;
+        const newEventType = ref({ name: '', color: '#3b82f6' });
+        const newEvent = ref({ title: '', location: '', isAllDay: false, startTime: '09:00', endTime: '10:00', type: '一般' });
+        const eventTypes = ref([
+            { name: '一般', color: '#3b82f6' },
+            { name: '工作', color: '#ef4444' },
+            { name: '家庭', color: '#10b981' }
+        ]);
+
         const chartRange = ref('all');
         const chartMode = ref('expense');
         const isAILoading = ref(false);
@@ -622,7 +760,7 @@ createApp({
         ]);
         const entries = ref({});
         const stockPortfolio = ref([]);
-        const form = ref({ records: [], diaryText: '', feeling: '😊', photos: [], locations: [], audio: null });
+        const form = ref({ records: [], diaryText: '', feeling: '😊', photos: [], locations: [], audio: null, events: [] });
         const newRecord = ref({ type: 'expense', amount: null, category: '餐飲', note: '' });
         const newStock = ref({ name: '', qty: null, buyPrice: null });
 
@@ -634,6 +772,10 @@ createApp({
             zh: { 
                 ledger: '帳本', stocks: '股市投資', charts: '分析統計', settings: '系統設置', add: '新增',
                 year: '年', month: '月', steps: '步', in_prefix: '收', out_prefix: '支', daily_net: '當日結餘',
+                today: '今日',
+                calendar: '行事曆', event_title: '活動名稱', location: '地點', all_day: '整日', 
+                start_time: '開始時間', end_time: '結束時間', event_type: '活動類型', 
+                add_event: '新增活動', add_event_type: '新增類型', edit_event_type: '編輯類型', save_changes: '儲存變更',
                 weekdays: ['日','一','二','三','四','五','六'],
                 daily_finance: '當日財務', daily_diary: '心情日誌', fetching: '行情獲取中',
                 no_data_hint: '今天尚未有紀錄', balance: '結餘', choose_year: '選擇年份', choose_month: '選擇月份', confirm: '確認', cancel: '取消',
@@ -652,6 +794,10 @@ createApp({
             en: { 
                 ledger: 'Ledger', stocks: 'Stocks', charts: 'Analysis', settings: 'Settings', add: 'New',
                 year: 'Y', month: 'M', steps: 'steps', in_prefix: 'IN', out_prefix: 'OUT', daily_net: 'Net',
+                today: 'Today',
+                calendar: 'Calendar', event_title: 'Event Title', location: 'Location', all_day: 'All Day', 
+                start_time: 'Start Time', end_time: 'End Time', event_type: 'Event Type', 
+                add_event: 'Add Event', add_event_type: 'Add Type', edit_event_type: 'Edit Type', save_changes: 'Save Changes',
                 weekdays: ['S','M','T','W','T','F','S'], daily_finance: 'Finance', daily_diary: 'Journal', fetching: 'Updating',
                 no_data_hint: 'No data', balance: 'Balance', choose_year: 'Year', choose_month: 'Month', confirm: 'Done', cancel: 'Cancel',
                 income: 'Income', expense: 'Expense', income_short: 'IN', expense_short: 'OUT',
@@ -681,11 +827,11 @@ createApp({
         function getCategoryIcon(n) { return categories.value.find(c => c.name === n)?.icon || '❓'; }
         function getPhotoGridClass(c) { return c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48'); }
 
-        // 多重代理保護機制
+        // 多重代理保護機制 (強化驗證，避免回傳空殼假裝成功)
         async function safeFetch(url, isAllOriginsJson = false) {
             const proxies = [
-                u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
                 u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+                u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
                 u => `https://corsproxy.io/?${encodeURIComponent(u)}`
             ];
             
@@ -704,7 +850,9 @@ createApp({
                         }
                         return wrapper.contents;
                     } else {
-                        return await res.json();
+                        const data = await res.json();
+                        if (url.includes('yahoo') && !data?.quoteResponse && !data?.quotes) throw new Error('Invalid Yahoo data');
+                        return data;
                     }
                 } catch(e) {
                     console.warn('Proxy fallback triggered');
@@ -722,26 +870,40 @@ createApp({
         function changeYearTo(y) { currentYear.value = y; showYearPicker.value = false; showMonthPicker.value = true; }
         function changeMonthTo(m) { currentMonth.value = m; showMonthPicker.value = false; }
         
-        // 載入台灣股市官方清單 (含上市上櫃)
+        // 載入台灣股市官方清單 (含上市上櫃)，並快取「收盤價」作為終極保底
         async function loadStockList() {
             if (cachedStockList.value.length > 0 || isStockListLoading.value) return;
             isStockListLoading.value = true;
             try {
+                // 直接向官方抓取最新清單
                 const [tseData, otcData] = await Promise.all([
                     safeFetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL', true).catch(() => []),
                     safeFetch('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes', true).catch(() => [])
                 ]);
                 
                 const list = [];
+                // 解析金額字串轉為數字 (去除逗號)
+                const parsePrice = (p) => parseFloat((p || "0").toString().replace(/,/g, ''));
+                
                 if(tseData && tseData.length) {
                     tseData.forEach(item => {
-                        if (item.Code && item.Name) list.push({ id: item.Code, name: item.Name.trim() });
+                        if (item.Code && item.Name) {
+                            list.push({ 
+                                id: item.Code, 
+                                name: item.Name.trim(), 
+                                price: parsePrice(item.ClosingPrice || item.OpeningPrice) 
+                            });
+                        }
                     });
                 }
                 if(otcData && otcData.length) {
                     otcData.forEach(item => {
                         if (item.SecuritiesCompanyCode && item.CompanyName) {
-                            list.push({ id: item.SecuritiesCompanyCode, name: item.CompanyName.trim() });
+                            list.push({ 
+                                id: item.SecuritiesCompanyCode, 
+                                name: item.CompanyName.trim(), 
+                                price: parsePrice(item.Close || item.Open) 
+                            });
                         }
                     });
                 }
@@ -764,15 +926,23 @@ createApp({
         function loadFormData() {
              const k = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(selectedDay.value).padStart(2, '0')}`;
              const e = entries.value[k];
-             form.value = e ? JSON.parse(JSON.stringify(e)) : { records: [], diaryText: '', feeling: '😊', photos: [], locations: [], audio: null };
+             form.value = e ? JSON.parse(JSON.stringify(e)) : { records: [], diaryText: '', feeling: '😊', photos: [], locations: [], audio: null, events: [] };
+             if (!form.value.events) form.value.events = [];
         }
 
         async function syncToCloud() {
             if (!auth || !user.value) return;
             try {
                 const stateDoc = fb.doc(db, 'artifacts', appId, 'users', user.value.uid, 'appData', 'globalState');
-                await fb.setDoc(stateDoc, { entries: JSON.stringify(entries.value), stockPortfolio: stockPortfolio.value, categories: categories.value, settings: settings.value, lastSync: Date.now() });
-            } catch (e) { console.error(e); }
+                await fb.setDoc(stateDoc, { 
+                    entries: JSON.stringify(entries.value), 
+                    stockPortfolio: stockPortfolio.value, 
+                    categories: categories.value, 
+                    settings: settings.value, 
+                    eventTypes: eventTypes.value,
+                    lastSync: Date.now() 
+                });
+            } catch (e) { console.error("Cloud Sync Failed", e); }
         }
 
         async function loadFromCloud() {
@@ -787,6 +957,7 @@ createApp({
                     if (data.stockPortfolio) stockPortfolio.value = data.stockPortfolio;
                     if (data.categories) categories.value = data.categories;
                     if (data.settings) settings.value = data.settings;
+                    if (data.eventTypes) eventTypes.value = data.eventTypes;
                 }
             } catch (e) { showError("讀取雲端失敗"); }
             isGlobalLoading.value = false;
@@ -844,13 +1015,15 @@ createApp({
             }
         }
 
-        // --- 核心優化：雙引擎報價機制 (TWSE MIS + Yahoo Finance 備援) ---
+        // --- 核心優化：四大引擎保底報價機制 (Yahoo -> TWSE -> Yahoo走勢 -> 本地收盤) ---
         async function updatePortfolioPrices() {
             if (!stockPortfolio.value.length) return;
             isAILoading.value = true;
             
             try {
-                // 1. 取得所有清單中的股票代碼
+                // 確保 OpenAPI 本地清單已載入 (包含 100% 準確的收盤價作為終極保底)
+                if (cachedStockList.value.length === 0) await loadStockList();
+
                 const syms = stockPortfolio.value.map(s => {
                     let code = s.name.match(/\d+/)?.[0];
                     if (!code && cachedStockList.value.length > 0) {
@@ -868,50 +1041,49 @@ createApp({
 
                 const priceMap = {};
 
-                // 引擎 1：台灣證交所 MIS API (最即時，涵蓋多數上市櫃)
+                // 引擎 1：Yahoo Finance API (全球資料庫，優先取得)
                 try {
-                    const queryList = syms.map(c => `tse_${c}.tw|otc_${c}.tw`).join('|');
-                    const targetUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${queryList}&json=1&delay=0&_=${Date.now()}`;
-                    const data = await safeFetch(targetUrl, true);
+                    const yQuery = syms.map(c => `${c}.TW,${c}.TWO`).join(',');
+                    const targetUrl = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${yQuery}`;
+                    const yData = await safeFetch(targetUrl, true);
                     
-                    if (data && data.msgArray && data.msgArray.length > 0) {
-                        data.msgArray.forEach(item => {
-                            const code = item.c; 
-                            const price = (item.z !== '-' ? item.z : (item.o !== '-' ? item.o : item.y));
+                    if (yData && yData.quoteResponse && yData.quoteResponse.result) {
+                        yData.quoteResponse.result.forEach(item => {
+                            const code = item.symbol.split('.')[0];
+                            // 嘗試多種價格屬性
+                            const price = item.regularMarketPrice || item.regularMarketPreviousClose || item.ask || item.bid;
                             if (code && price) {
-                                priceMap[code] = { price: parseFloat(price), name: item.n };
+                                priceMap[code] = { price: parseFloat(price), name: item.shortName || item.longName || code };
                             }
                         });
                     }
                 } catch(e) {
-                    console.warn("TWSE MIS Engine failed, will use Yahoo fallback");
+                    console.warn("Engine 1 failed");
                 }
 
-                // 找出證交所查不到的「漏網之魚」 (如 009816 等特殊商品)
-                const missingSyms = syms.filter(c => !priceMap[c]);
-
-                // 引擎 2：Yahoo Finance API (全球資料庫，涵蓋權證與特殊 ETF)
-                if (missingSyms.length > 0) {
+                // 引擎 2：台灣證交所 MIS API (Yahoo 找不到時備援)
+                const missingSyms2 = syms.filter(c => !priceMap[c]);
+                if (missingSyms2.length > 0) {
                     try {
-                        const yQuery = missingSyms.map(c => `${c}.TW,${c}.TWO`).join(',');
-                        const targetUrl = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${yQuery}`;
-                        const yData = await safeFetch(targetUrl, true);
+                        const queryList = missingSyms2.map(c => `tse_${c}.tw|otc_${c}.tw`).join('|');
+                        const targetUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${queryList}&json=1&delay=0&_=${Date.now()}`;
+                        const data = await safeFetch(targetUrl, true);
                         
-                        if (yData && yData.quoteResponse && yData.quoteResponse.result) {
-                            yData.quoteResponse.result.forEach(item => {
-                                const code = item.symbol.split('.')[0];
-                                const price = item.regularMarketPrice;
-                                if (code && price) {
-                                    priceMap[code] = { price: parseFloat(price), name: item.shortName || item.longName || code };
+                        if (data && data.msgArray && data.msgArray.length > 0) {
+                            data.msgArray.forEach(item => {
+                                const code = item.c; 
+                                const price = (item.z !== '-' ? item.z : (item.o !== '-' ? item.o : item.y));
+                                if (code && price && price !== '0.00') {
+                                    priceMap[code] = { price: parseFloat(price), name: item.n };
                                 }
                             });
                         }
                     } catch(e) {
-                        console.warn("Yahoo Engine failed", e);
+                        console.warn("Engine 2 failed");
                     }
                 }
 
-                // 結算並更新至畫面
+                // 引擎 3 & 4：結算並強制保底
                 let updateCount = 0;
                 stockPortfolio.value.forEach(stk => {
                     let id = stk.name.match(/\d+/)?.[0];
@@ -929,6 +1101,15 @@ createApp({
                         }
                         updateCount++;
                     }
+                    // 引擎 4：終極保底 (如果 API 都找不到 009816，直接用官方 OpenAPI 的收盤價)
+                    else if (id) {
+                        const cachedItem = cachedStockList.value.find(c => c.id === id);
+                        if (cachedItem && cachedItem.price > 0) {
+                            stk.currentPrice = cachedItem.price;
+                            stk.name = `${cachedItem.name}(${id})`;
+                            updateCount++;
+                        }
+                    }
                 });
                 
                 if (updateCount > 0) {
@@ -942,6 +1123,120 @@ createApp({
                 showError("無法取得股市資料，請檢查網路連線");
             }
             isAILoading.value = false;
+        }
+
+        // --- 行事曆功能函式 ---
+        function getEventTypeColor(name) {
+            const type = eventTypes.value.find(t => t.name === name);
+            return type ? type.color : '#3b82f6';
+        }
+
+        function toggleAddEventForm() {
+            if (isAddingEvent.value) {
+                cancelEditEvent();
+            } else {
+                isAddingEvent.value = true;
+            }
+        }
+
+        function startEventLongPress(idx) { 
+            eventLongPressTimer = setTimeout(() => { 
+                const ev = form.value.events[idx];
+                newEvent.value = { ...ev };
+                editingEventIdx.value = idx;
+                isAddingEvent.value = true;
+                updateIcons();
+            }, 800); 
+        }
+        function endEventLongPress() { clearTimeout(eventLongPressTimer); }
+        
+        function cancelEditEvent() {
+            newEvent.value = { title: '', location: '', isAllDay: false, startTime: '09:00', endTime: '10:00', type: eventTypes.value[0]?.name || '一般' };
+            editingEventIdx.value = -1;
+            isAddingEvent.value = false;
+        }
+
+        function addEvent() {
+            if (!newEvent.value.title.trim()) {
+                showError("請輸入活動名稱");
+                return;
+            }
+            if (!form.value.events) form.value.events = [];
+            
+            if (editingEventIdx.value !== -1) {
+                form.value.events[editingEventIdx.value] = { ...newEvent.value };
+            } else {
+                form.value.events.push({ ...newEvent.value });
+            }
+            cancelEditEvent();
+            updateIcons();
+        }
+
+        function openAddEventTypeModal() {
+            isEditingEventType.value = false;
+            newEventType.value = { name: '', color: '#3b82f6' };
+            showEventTypeModal.value = true;
+        }
+
+        function openEditEventTypeModal(name) {
+            const type = eventTypes.value.find(t => t.name === name);
+            if (!type) return;
+            isEditingEventType.value = true;
+            editingEventTypeOriginalName.value = type.name;
+            newEventType.value = { ...type };
+            showEventTypeModal.value = true;
+            updateIcons();
+        }
+
+        function saveEventType() {
+            const name = newEventType.value.name.trim();
+            if (!name) return;
+
+            if (isEditingEventType.value) {
+                if (name !== editingEventTypeOriginalName.value && eventTypes.value.some(t => t.name === name)) {
+                    showError("此類型名稱已存在");
+                    return;
+                }
+                const index = eventTypes.value.findIndex(t => t.name === editingEventTypeOriginalName.value);
+                if (index !== -1) eventTypes.value[index] = { ...newEventType.value };
+                
+                if (newEvent.value.type === editingEventTypeOriginalName.value) {
+                    newEvent.value.type = name;
+                }
+
+                // 同步更新歷史活動名稱
+                if (name !== editingEventTypeOriginalName.value) {
+                    Object.keys(entries.value).forEach(dateKey => {
+                        if (entries.value[dateKey].events) {
+                            entries.value[dateKey].events.forEach(ev => {
+                                if (ev.type === editingEventTypeOriginalName.value) ev.type = name;
+                            });
+                        }
+                    });
+                }
+            } else {
+                if (eventTypes.value.some(t => t.name === name)) {
+                    showError("此類型名稱已存在");
+                    return;
+                }
+                eventTypes.value.push({ ...newEventType.value });
+                newEvent.value.type = name;
+            }
+            showEventTypeModal.value = false;
+            syncToCloud();
+        }
+
+        function deleteEventType() {
+            if (eventTypes.value.length <= 1) {
+                showError("請至少保留一個活動類型");
+                return;
+            }
+            const index = eventTypes.value.findIndex(t => t.name === editingEventTypeOriginalName.value);
+            if (index !== -1) eventTypes.value.splice(index, 1);
+            
+            newEvent.value.type = eventTypes.value[0].name;
+            showEventTypeModal.value = false;
+            syncToCloud();
         }
 
         function addNewRecord() { if (newRecord.value.amount) { form.value.records.unshift({ ...newRecord.value }); newRecord.value.amount = null; newRecord.value.note = ''; } }
@@ -962,16 +1257,17 @@ createApp({
             
             searchTimeout = setTimeout(async () => {
                 let results = [];
-                try {
-                    // 1. 優先使用本地快取清單 (精準匹配台股中英文與代碼)
-                    if (cachedStockList.value.length > 0) {
-                        results = cachedStockList.value.filter(s => 
-                            s.id.includes(query) || s.name.includes(query) || query.includes(s.name)
-                        ).slice(0, 10);
-                    }
-                    
-                    // 2. 本地查無結果，嘗試 Yahoo 搜尋備援
-                    if (results.length === 0 && !/^\d+$/.test(query)) {
+                
+                // 1. 優先使用本地快取清單 (超快，支援中英文與代碼)
+                if (cachedStockList.value.length > 0) {
+                    results = cachedStockList.value.filter(s => 
+                        s.id.includes(query) || s.name.includes(query) || query.includes(s.name)
+                    ).slice(0, 10);
+                }
+                
+                // 2. 本地查無結果，嘗試 Yahoo 搜尋備援
+                if (results.length === 0 && !/^\d+$/.test(query)) {
+                    try {
                         const yUrl = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&lang=zh-Hant-TW&region=TW&quotesCount=6`;
                         const yData = await safeFetch(yUrl, true);
                         if (yData && yData.quotes) {
@@ -983,9 +1279,7 @@ createApp({
                                 }
                             });
                         }
-                    }
-                } catch(e) {
-                    console.warn("Search API failed", e);
+                    } catch(e) {}
                 }
                 
                 // 3. 保底選項：純數字代碼直接給予加入選項
@@ -1122,7 +1416,6 @@ createApp({
                     if (u) loadFromCloud();
                     else isGlobalLoading.value = false;
                 });
-                // 嘗試環境變數登入 (Preview 環境)
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     fb.signInWithCustomToken(auth, __initial_auth_token).catch(() => { isGlobalLoading.value = false; });
                 } else isGlobalLoading.value = false;
@@ -1137,14 +1430,39 @@ createApp({
         return {
             currentView, showAddModal, showYearPicker, showMonthPicker, showAddCategory, showEditCategory, showEditStockModal, showCategoryDetailModal, showLoginModal,
             yearRange, chartRange, chartMode, t, settings, currentYear, currentMonth, selectedDay, daysInMonth, firstDayOfMonth, selectedDateString, version: appVersion, stockSuggestions, debouncedSearch,
-            getDayEntries: (d) => { const k = `${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const e = entries.value[k]; return { hasDiary: !!(e?.diaryText || e?.photos?.length || e?.audio), hasFinance: !!(e?.records?.length) }; },
+            getDayEntries: (d) => { 
+                const k = `${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; 
+                const e = entries.value[k]; 
+                return { 
+                    hasDiary: !!(e?.diaryText || e?.photos?.length || e?.audio), 
+                    hasFinance: !!(e?.records?.length),
+                    events: e?.events || []
+                }; 
+            },
+            isToday: (d) => {
+                const today = new Date();
+                return currentYear.value === today.getFullYear() && currentMonth.value === today.getMonth() && d === today.getDate();
+            },
+            getDayTextColor: (d) => {
+                const k = `${currentYear.value}-${String(currentMonth.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; 
+                const e = entries.value[k]; 
+                const hasDiary = !!(e?.diaryText || e?.photos?.length || e?.audio); 
+                const hasFinance = !!(e?.records?.length);
+                if (hasDiary && hasFinance) return 'text-green-600';
+                if (hasDiary) return 'text-yellow-500';
+                if (hasFinance) return 'text-red-500';
+                return 'text-slate-700';
+            },
             form, saveRecord, openAddModal, allDataTotals, formatNumber, chartCategories, chartTotalValue, pieGradient, dayNetBalance, dayTotalIncome, dayTotalExpense, editTab, newRecord, currentCategories, errorMsg, editingStock, addNewRecord, getCategoryIcon, iconPool, categoryForm, confirmCategoryAction, closeCategoryModal, startCategoryLongPress, endCategoryLongPress, startStockLongPress, endStockLongPress, confirmEditStock,
             stockPortfolio, newStock, addStockItem, updatePortfolioPrices, stockTotalValue, stockTotalProfit, isAILoading, lastSyncTime,
             handleModalTouchStart, handleModalTouchMove, handleModalTouchEnd, isDraggingModal, modalStyle,
             handleMultiPhotoUpload, addLocation, locationSearch, openGoogleMaps, openGoogleMapsSearch, startRecording, stopRecording, playAudio, isRecording, selectStockSuggestion, getPhotoGridClass, changeYear, changeMonth, currentDayData,
             selectedCategoryForDetail, categoryDetailRecords, jumpToCategoryDetails, jumpToEdit, deleteSpecificRecord,
             user, handleGoogleLogin, handleLogout, isGlobalLoading, changeYearTo, changeMonthTo,
-            changeDate, loadFormData, firebaseConfigMissing
+            changeDate, loadFormData, firebaseConfigMissing,
+            showEventTypeModal, isEditingEventType, isAddingEvent, newEventType, newEvent, eventTypes, getEventTypeColor, 
+            addEvent, openAddEventTypeModal, openEditEventTypeModal, saveEventType, deleteEventType,
+            toggleAddEventForm, startEventLongPress, endEventLongPress, cancelEditEvent, editingEventIdx
         };
     }
 }).mount('#app');
