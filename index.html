@@ -10,6 +10,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <!-- 設定 Tailwind 啟用 Class 基礎的深色模式 -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    
     <!-- Firebase SDK 引入與全域宣告 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -43,6 +50,12 @@
             -webkit-user-select: none;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* 讓 Tailwind 的 dark mode 套用到 body 背景 */
+        html.dark body {
+            background-color: #000000;
         }
 
         .app-container { height: 100%; width: 100%; }
@@ -68,6 +81,7 @@
         
         /* 現代化柔和陰影 */
         .card-shadow { box-shadow: 0 8px 30px -10px rgba(0, 0, 0, 0.06); }
+        html.dark .card-shadow { box-shadow: 0 8px 30px -10px rgba(0, 0, 0, 0.5); }
         
         /* 適配手機邊界的 Padding */
         .pt-safe { padding-top: max(var(--sat), 1rem); }
@@ -90,7 +104,6 @@
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             width: 155px; height: 155px;
-            background-color: #ffffff;
             border-radius: 50%;
             display: flex;
             flex-direction: column;
@@ -108,6 +121,7 @@
             border: 2px solid white;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
+        html.dark .photo-thumb { border-color: #2c2c2e; }
 
         .recording-pulse { animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } }
@@ -120,7 +134,7 @@
             -webkit-overflow-scrolling: touch;
         }
         .modal-transition {
-            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease, background-color 0.3s ease;
         }
 
         .picker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -139,6 +153,7 @@
             padding: 12px 16px;
             border-bottom: 1px solid #f1f5f9;
         }
+        html.dark .suggestion-item { border-bottom-color: #2c2c2e; }
 
         .version-watermark {
             width: 100%;
@@ -160,13 +175,13 @@
         .photo-grid-3 { grid-template-areas: "a b" "a c"; grid-template-columns: 1.5fr 1fr; }
     </style>
 </head>
-<body class="antialiased text-slate-900">
+<body class="antialiased text-slate-900 dark:text-slate-100 transition-colors duration-300">
 
 <div id="app" v-cloak class="flex justify-center items-center app-container" :style="{'--p-color': settings.themeColor}">
     <!-- 雲端同步中覆蓋層 -->
-    <div v-if="isGlobalLoading" class="absolute inset-0 z-[200] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center">
-        <div class="w-12 h-12 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-        <p class="text-[0.65em] font-black text-slate-400 tracking-widest uppercase">Cloud Syncing...</p>
+    <div v-if="isGlobalLoading" class="absolute inset-0 z-[200] bg-white/90 dark:bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center transition-colors">
+        <div class="w-12 h-12 border-4 border-slate-100 dark:border-slate-800 border-t-indigo-600 dark:border-t-indigo-500 rounded-full animate-spin mb-4"></div>
+        <p class="text-[0.65em] font-black text-slate-400 dark:text-slate-500 tracking-widest uppercase">Cloud Syncing...</p>
     </div>
 
     <!-- 未配置 Firebase 警告 (若使用者未填入配置) -->
@@ -174,7 +189,7 @@
         請編輯程式碼，填入您的 Firebase 設定以啟用雲端功能
     </div>
 
-    <div :class="['w-full sm:max-w-md h-full bg-slate-50 shadow-2xl relative flex flex-col overflow-hidden transition-all duration-300', 'app-font-' + settings.fontSize]">
+    <div :class="['w-full sm:max-w-md h-full bg-slate-50 dark:bg-black shadow-2xl relative flex flex-col overflow-hidden transition-colors duration-300', 'app-font-' + settings.fontSize]">
         
         <!-- 通知列 -->
         <transition name="slide-down">
@@ -215,27 +230,27 @@
         </header>
 
         <!-- 主要內容區 -->
-        <main class="flex-1 overflow-y-auto hide-scrollbar bg-slate-50 relative main-pb">
+        <main class="flex-1 overflow-y-auto hide-scrollbar bg-slate-50 dark:bg-[#111111] relative main-pb transition-colors duration-300">
             <!-- 年月選擇彈窗 -->
             <div v-if="showYearPicker || showMonthPicker" class="absolute inset-0 z-[60] flex items-center justify-center p-6">
-                <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showYearPicker = false; showMonthPicker = false"></div>
-                <div class="relative w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl animate-in zoom-in duration-200">
-                    <div class="flex justify-between items-center mb-4 border-b pb-2">
-                        <h3 class="font-black text-slate-400 text-[0.75em] uppercase tracking-widest">{{ showYearPicker ? t('choose_year') : t('choose_month') }}</h3>
+                <div class="absolute inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm" @click="showYearPicker = false; showMonthPicker = false"></div>
+                <div class="relative w-full max-w-xs bg-white dark:bg-[#1c1c1e] rounded-3xl p-6 shadow-2xl animate-in zoom-in duration-200">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-[#2c2c2e] pb-2">
+                        <h3 class="font-black text-slate-400 dark:text-slate-500 text-[0.75em] uppercase tracking-widest">{{ showYearPicker ? t('choose_year') : t('choose_month') }}</h3>
                         <div class="flex gap-2">
-                            <button @click="showYearPicker = true; showMonthPicker = false" :class="showYearPicker ? 'text-p' : 'text-slate-300'"><i data-lucide="calendar" class="w-4 h-4"></i></button>
-                            <button @click="showMonthPicker = true; showYearPicker = false" :class="showMonthPicker ? 'text-p' : 'text-slate-300'"><i data-lucide="layers" class="w-4 h-4"></i></button>
+                            <button @click="showYearPicker = true; showMonthPicker = false" :class="showYearPicker ? 'text-p' : 'text-slate-300 dark:text-slate-600'"><i data-lucide="calendar" class="w-4 h-4"></i></button>
+                            <button @click="showMonthPicker = true; showYearPicker = false" :class="showMonthPicker ? 'text-p' : 'text-slate-300 dark:text-slate-600'"><i data-lucide="layers" class="w-4 h-4"></i></button>
                         </div>
                     </div>
                     <div class="picker-grid max-h-60 overflow-y-auto hide-scrollbar">
                         <template v-if="showYearPicker">
                             <button v-for="y in yearRange" :key="y" @click="changeYearTo(y)" 
-                                :class="currentYear === y ? 'bg-p text-white shadow-lg scale-105' : 'bg-slate-50 text-slate-600'"
+                                :class="currentYear === y ? 'bg-p text-white shadow-lg scale-105' : 'bg-slate-50 dark:bg-[#2c2c2e] text-slate-600 dark:text-slate-300'"
                                 class="py-3 rounded-xl font-black active:scale-95 transition-all">{{ y }}</button>
                         </template>
                         <template v-if="showMonthPicker">
                             <button v-for="m in 12" :key="m" @click="changeMonthTo(m-1)" 
-                                :class="currentMonth === m-1 ? 'bg-p text-white shadow-lg scale-105' : 'bg-slate-50 text-slate-600'"
+                                :class="currentMonth === m-1 ? 'bg-p text-white shadow-lg scale-105' : 'bg-slate-50 dark:bg-[#2c2c2e] text-slate-600 dark:text-slate-300'"
                                 class="py-3 rounded-xl font-black active:scale-95 transition-all">{{ m }}{{ t('month') }}</button>
                         </template>
                     </div>
@@ -244,16 +259,15 @@
 
             <!-- 分頁：帳本 -->
             <section v-if="currentView === 'ledger'" class="animate-in fade-in duration-300">
-                <div class="p-3 bg-white border-b border-slate-100 sticky top-0 z-10 shadow-sm rounded-b-[2rem] -mx-1 px-4 pb-5">
-                    <div class="calendar-grid text-center text-[0.65em] font-bold text-slate-400 mb-2 uppercase tracking-widest">
+                <div class="p-3 bg-white dark:bg-[#1c1c1e] border-b border-slate-100 dark:border-[#2c2c2e] sticky top-0 z-10 shadow-sm rounded-b-[2rem] -mx-1 px-4 pb-5 transition-colors">
+                    <div class="calendar-grid text-center text-[0.65em] font-bold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-widest">
                         <div v-for="d in t('weekdays')" :key="d">{{ d }}</div>
                     </div>
                     <div class="calendar-grid gap-1">
                         <div v-for="empty in firstDayOfMonth" :key="'e'+empty"></div>
                         <div v-for="day in daysInMonth" :key="day" @click="selectedDay = day"
-                            class="py-1 text-center rounded-2xl cursor-pointer transition-all relative aspect-square flex flex-col items-center justify-start active:bg-slate-100"
+                            class="py-1 text-center rounded-2xl cursor-pointer transition-all relative aspect-square flex flex-col items-center justify-start hover:bg-slate-100 dark:hover:bg-[#2c2c2e] active:bg-slate-100 dark:active:bg-[#2c2c2e]"
                         >
-                            <!-- 數字選取圓圈 -->
                             <div class="w-8 h-8 flex items-center justify-center rounded-full transition-all shrink-0"
                                  :style="selectedDay === day ? { backgroundColor: settings.themeColor, color: 'white' } : {}"
                                  :class="[
@@ -276,26 +290,26 @@
                 </div>
 
                 <div class="p-5 space-y-4">
-                    <h3 class="text-[0.75em] font-black text-slate-400 uppercase tracking-wider px-1">{{ selectedDateString }}</h3>
+                    <h3 class="text-[0.75em] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider px-1">{{ selectedDateString }}</h3>
                     
                     <div v-if="currentDayData" class="flex flex-col gap-4">
                         <!-- 當日財務 -->
-                        <div @click="openAddModal('finance')" class="bg-white p-5 rounded-3xl card-shadow border border-slate-100/50 cursor-pointer active:scale-[0.98] transition-all">
-                            <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
+                        <div @click="openAddModal('finance')" class="bg-white dark:bg-[#1c1c1e] p-5 rounded-3xl card-shadow border border-slate-100/50 dark:border-[#2c2c2e] cursor-pointer active:scale-[0.98] transition-all">
+                            <div class="flex items-center justify-between mb-4 border-b border-slate-50 dark:border-[#2c2c2e] pb-3">
                                 <div class="flex items-center gap-2">
                                     <i data-lucide="circle-dollar-sign" class="w-4 h-4 text-p"></i>
-                                    <span class="text-[0.85em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_finance') }}</span>
+                                    <span class="text-[0.85em] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">{{ t('daily_finance') }}</span>
                                 </div>
-                                <span class="text-[0.75em] font-bold text-slate-300">#{{ currentDayData?.records?.length || 0 }}</span>
+                                <span class="text-[0.75em] font-bold text-slate-300 dark:text-slate-500">#{{ currentDayData?.records?.length || 0 }}</span>
                             </div>
                             <div class="flex justify-between items-center px-1">
                                 <div class="flex flex-col gap-2.5">
-                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-black"><i data-lucide="arrow-down-left" class="w-3 h-3"></i></div><span class="text-[0.85em] font-black text-red-600 font-mono">+{{ formatNumber(dayTotalIncome) }}</span></div>
-                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-black"><i data-lucide="arrow-up-right" class="w-3 h-3"></i></div><span class="text-[0.85em] font-black text-green-600 font-mono">-{{ formatNumber(dayTotalExpense) }}</span></div>
+                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400 font-black"><i data-lucide="arrow-down-left" class="w-3 h-3"></i></div><span class="text-[0.85em] font-black text-red-600 dark:text-red-400 font-mono">+{{ formatNumber(dayTotalIncome) }}</span></div>
+                                    <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-green-50 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 font-black"><i data-lucide="arrow-up-right" class="w-3 h-3"></i></div><span class="text-[0.85em] font-black text-green-600 dark:text-green-400 font-mono">-{{ formatNumber(dayTotalExpense) }}</span></div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="text-[0.65em] text-slate-400 font-bold uppercase mb-1">{{ t('daily_net') }}</p>
-                                    <div :class="dayNetBalance >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[1.5em] font-black font-mono tracking-tighter leading-none">
+                                    <p class="text-[0.65em] text-slate-400 dark:text-slate-500 font-bold uppercase mb-1">{{ t('daily_net') }}</p>
+                                    <div :class="dayNetBalance >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'" class="text-[1.5em] font-black font-mono tracking-tighter leading-none">
                                         {{ dayNetBalance >= 0 ? '+' : '' }}{{ formatNumber(dayNetBalance) }}
                                     </div>
                                 </div>
@@ -303,21 +317,21 @@
                         </div>
 
                         <!-- 心情日誌 -->
-                        <div @click="openAddModal('diary')" class="bg-white p-5 rounded-3xl card-shadow border border-slate-100/50 cursor-pointer active:scale-[0.98] transition-all">
-                            <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
+                        <div @click="openAddModal('diary')" class="bg-white dark:bg-[#1c1c1e] p-5 rounded-3xl card-shadow border border-slate-100/50 dark:border-[#2c2c2e] cursor-pointer active:scale-[0.98] transition-all">
+                            <div class="flex items-center justify-between mb-4 border-b border-slate-50 dark:border-[#2c2c2e] pb-3">
                                 <div class="flex items-center gap-2">
                                     <i data-lucide="pen-tool" class="w-4 h-4 text-orange-400"></i>
-                                    <span class="text-[0.85em] font-black text-slate-700 uppercase tracking-widest">{{ t('daily_diary') }}</span>
+                                    <span class="text-[0.85em] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">{{ t('daily_diary') }}</span>
                                 </div>
                                 <div class="text-[1.25em] leading-none">{{ currentDayData?.feeling || '😊' }}</div>
                             </div>
                             <div class="px-1 space-y-3">
                                 <div v-if="currentDayData?.photos?.length" class="grid gap-1.5 overflow-hidden rounded-2xl" :class="getPhotoGridClass(currentDayData.photos.length)">
-                                    <img v-for="(img, idx) in currentDayData.photos.slice(0, 3)" :key="idx" :src="img" class="w-full h-full object-cover min-h-[80px]">
+                                    <img v-for="(img, idx) in currentDayData.photos.slice(0, 3)" :key="idx" :src="img" class="w-full h-full object-cover min-h-[80px] photo-thumb">
                                 </div>
-                                <p class="text-[0.85em] text-slate-600 leading-relaxed truncate">{{ currentDayData?.diaryText || t('no_diary_text') }}</p>
+                                <p class="text-[0.85em] text-slate-600 dark:text-slate-300 leading-relaxed truncate">{{ currentDayData?.diaryText || t('no_diary_text') }}</p>
                                 <div v-if="currentDayData?.locations?.length" class="flex gap-1.5 overflow-x-auto hide-scrollbar pt-1">
-                                    <div v-for="loc in currentDayData.locations" :key="loc.name" class="flex items-center whitespace-nowrap bg-slate-100 px-2.5 py-1 rounded-md text-[0.65em] font-bold text-slate-500">
+                                    <div v-for="loc in currentDayData.locations" :key="loc.name" class="flex items-center whitespace-nowrap bg-slate-100 dark:bg-[#2c2c2e] px-2.5 py-1 rounded-md text-[0.65em] font-bold text-slate-500 dark:text-slate-400">
                                         <i data-lucide="map-pin" class="w-2.5 h-2.5 mr-1"></i>{{ loc.name }}
                                     </div>
                                 </div>
@@ -329,7 +343,7 @@
 
             <!-- 分頁：股市投資 -->
             <section v-if="currentView === 'stocks'" class="p-5 space-y-5 animate-in fade-in">
-                <div class="bg-slate-900 text-white p-7 rounded-[2rem] shadow-xl relative overflow-hidden">
+                <div class="bg-slate-900 dark:bg-black border border-transparent dark:border-[#2c2c2e] text-white p-7 rounded-[2rem] shadow-xl relative overflow-hidden">
                     <div class="absolute -right-5 -top-5 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl"></div>
                     <div class="relative z-10 space-y-5 text-center">
                         <div class="flex justify-between items-center border-b border-white/10 pb-5">
@@ -342,29 +356,29 @@
                 </div>
 
                 <div class="space-y-4 pb-6">
-                    <div v-for="(stk, idx) in stockPortfolio" :key="idx" class="bg-white p-4 rounded-3xl border border-slate-100 card-shadow flex justify-between items-center transition-all cursor-pointer active:scale-[0.98]" @touchstart="startStockLongPress(stk, idx)" @touchend="endStockLongPress" @mousedown="startStockLongPress(stk, idx)" @mouseup="endStockLongPress">
+                    <div v-for="(stk, idx) in stockPortfolio" :key="idx" class="bg-white dark:bg-[#1c1c1e] p-4 rounded-3xl border border-slate-100 dark:border-[#2c2c2e] card-shadow flex justify-between items-center transition-all cursor-pointer active:scale-[0.98]" @touchstart="startStockLongPress(stk, idx)" @touchend="endStockLongPress" @mousedown="startStockLongPress(stk, idx)" @mouseup="endStockLongPress">
                         <div class="flex items-center min-w-0 flex-1">
-                            <div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center mr-4 text-[1.25em] font-bold text-p shadow-inner shrink-0">{{ stk?.name?.[0] || '?' }}</div>
-                            <div class="min-w-0 flex-1"><p class="text-[0.9em] font-black text-slate-800 truncate pr-2">{{ stk?.name || '---' }}</p><p class="text-[0.65em] text-slate-400 font-bold uppercase mt-1">{{ stk?.qty }} {{ t('shares_unit') }} · cost - {{ formatNumber(stk?.buyPrice) }}</p></div>
+                            <div class="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-[#2c2c2e] flex items-center justify-center mr-4 text-[1.25em] font-bold text-p shadow-inner shrink-0">{{ stk?.name?.[0] || '?' }}</div>
+                            <div class="min-w-0 flex-1"><p class="text-[0.9em] font-black text-slate-800 dark:text-slate-100 truncate pr-2">{{ stk?.name || '---' }}</p><p class="text-[0.65em] text-slate-400 dark:text-slate-500 font-bold uppercase mt-1">{{ stk?.qty }} {{ t('shares_unit') }} · cost - {{ formatNumber(stk?.buyPrice) }}</p></div>
                         </div>
                         <div class="flex items-center gap-3 text-right shrink-0">
-                            <div><p :class="((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[0.85em] font-black font-mono">{{ ((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? '+' : '' }}{{ formatNumber(((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) * (stk?.qty || 0)) }}</p><p class="text-[0.6em] text-slate-400 font-bold uppercase mt-0.5">現價: {{ stk?.currentPrice || '---' }}</p></div>
-                            <button @click.stop="stockPortfolio.splice(idx, 1)" class="text-slate-200 hover:text-red-400 p-2 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            <div><p :class="((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'" class="text-[0.85em] font-black font-mono">{{ ((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? '+' : '' }}{{ formatNumber(((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) * (stk?.qty || 0)) }}</p><p class="text-[0.6em] text-slate-400 dark:text-slate-500 font-bold uppercase mt-0.5">現價: {{ stk?.currentPrice || '---' }}</p></div>
+                            <button @click.stop="stockPortfolio.splice(idx, 1)" class="text-slate-200 dark:text-slate-600 hover:text-red-400 dark:hover:text-red-400 p-2 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                         </div>
                     </div>
                     
-                    <div class="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm space-y-4 relative mt-2">
+                    <div class="p-6 bg-white dark:bg-[#1c1c1e] rounded-[2rem] border border-slate-100 dark:border-[#2c2c2e] shadow-sm space-y-4 relative mt-2">
                         <div class="relative">
-                            <input v-model="newStock.name" @input="debouncedSearch" type="text" class="bg-slate-50 w-full p-4 rounded-2xl text-[1em] font-black outline-none border-none shadow-inner focus:ring-2 ring-indigo-50 transition-all" :placeholder="t('stock_name_ph')">
-                            <div v-if="stockSuggestions.length" class="absolute left-0 right-0 top-[105%] bg-white rounded-2xl shadow-xl border border-slate-100 z-[100] max-h-60 overflow-y-auto hide-scrollbar py-2">
-                                <div v-for="sug in stockSuggestions" :key="sug.id" @click="selectStockSuggestion(sug)" class="suggestion-item cursor-pointer hover:bg-slate-50 active:bg-slate-100">
-                                    <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700">{{ sug.name }}</span><span class="text-[0.75em] font-bold text-slate-400">{{ sug.id }}</span></div>
+                            <input v-model="newStock.name" @input="debouncedSearch" type="text" class="bg-slate-50 dark:bg-[#2c2c2e] w-full p-4 rounded-2xl text-[1em] font-black outline-none border border-transparent dark:border-[#2c2c2e] shadow-inner focus:ring-2 ring-indigo-50 dark:ring-indigo-900 transition-all text-slate-900 dark:text-slate-100" :placeholder="t('stock_name_ph')">
+                            <div v-if="stockSuggestions.length" class="absolute left-0 right-0 top-[105%] bg-white dark:bg-[#1c1c1e] rounded-2xl shadow-xl border border-slate-100 dark:border-[#2c2c2e] z-[100] max-h-60 overflow-y-auto hide-scrollbar py-2">
+                                <div v-for="sug in stockSuggestions" :key="sug.id" @click="selectStockSuggestion(sug)" class="suggestion-item cursor-pointer hover:bg-slate-50 dark:hover:bg-[#2c2c2e] active:bg-slate-100 dark:active:bg-[#2c2c2e]">
+                                    <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700 dark:text-slate-200">{{ sug.name }}</span><span class="text-[0.75em] font-bold text-slate-400 dark:text-slate-500">{{ sug.id }}</span></div>
                                 </div>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
-                            <input v-model.number="newStock.qty" type="number" class="bg-slate-50 p-4 rounded-2xl text-[1em] font-black outline-none border-none shadow-inner text-center focus:ring-2 ring-indigo-50 transition-all" :placeholder="t('stock_qty_ph')">
-                            <input v-model.number="newStock.buyPrice" type="number" class="bg-slate-50 p-4 rounded-2xl text-[1em] font-black outline-none border-none shadow-inner text-center focus:ring-2 ring-indigo-50 transition-all" :placeholder="t('stock_buy_ph')">
+                            <input v-model.number="newStock.qty" type="number" class="bg-slate-50 dark:bg-[#2c2c2e] p-4 rounded-2xl text-[1em] font-black outline-none border border-transparent dark:border-[#2c2c2e] shadow-inner text-center focus:ring-2 ring-indigo-50 dark:ring-indigo-900 transition-all text-slate-900 dark:text-slate-100" :placeholder="t('stock_qty_ph')">
+                            <input v-model.number="newStock.buyPrice" type="number" class="bg-slate-50 dark:bg-[#2c2c2e] p-4 rounded-2xl text-[1em] font-black outline-none border border-transparent dark:border-[#2c2c2e] shadow-inner text-center focus:ring-2 ring-indigo-50 dark:ring-indigo-900 transition-all text-slate-900 dark:text-slate-100" :placeholder="t('stock_buy_ph')">
                         </div>
                         <button @click="addStockItem" :style="{ backgroundColor: settings.themeColor }" class="w-full text-white py-4 rounded-2xl font-black text-[0.85em] shadow-md active:scale-95 transition-all">{{ t('add_stock_btn') }}</button>
                     </div>
@@ -372,54 +386,54 @@
             </section>
 
             <!-- 分析統計頁面 -->
-            <section v-if="currentView === 'charts'" class="p-5 space-y-6 animate-in fade-in text-center text-slate-700">
-                <div class="bg-white p-4 rounded-[2rem] card-shadow border border-slate-50 flex items-center justify-between transition-all overflow-hidden gap-1">
-                    <div class="flex-1 min-w-0"><p class="text-[0.55em] font-black text-red-600 uppercase mb-1 truncate">{{ t('income_short') }}</p><p class="text-[0.85em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.income) }}</p></div>
-                    <div class="h-8 w-px bg-slate-100"></div>
-                    <div class="flex-1 min-w-0"><p class="text-[0.55em] font-black text-green-600 uppercase mb-1 truncate">{{ t('expense_short') }}</p><p class="text-[0.85em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.expense) }}</p></div>
-                    <div class="h-8 w-px bg-slate-100"></div>
-                    <div class="flex-1 min-w-0"><p class="text-[0.55em] font-black text-indigo-500 uppercase mb-1 truncate">{{ t('balance') }}</p><p class="text-[0.85em] font-black text-slate-700 truncate">${{ formatNumber(allDataTotals.net) }}</p></div>
-                    <div class="h-8 w-px bg-slate-100"></div>
-                    <div class="flex-1 min-w-0"><p class="text-[0.55em] font-black text-orange-500 uppercase mb-1 truncate">{{ t('unrealized_pl_short') }}</p><p :class="stockTotalProfit >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[0.85em] font-black truncate">${{ formatNumber(stockTotalProfit) }}</p></div>
+            <section v-if="currentView === 'charts'" class="p-5 space-y-6 animate-in fade-in text-center text-slate-700 dark:text-slate-200">
+                <div class="bg-white dark:bg-[#1c1c1e] p-4 rounded-[2rem] card-shadow border border-slate-50 dark:border-[#2c2c2e] flex items-center justify-between transition-all overflow-hidden gap-1">
+                    <div class="flex-1 min-w-0"><p class="text-[0.55em] font-black text-red-600 dark:text-red-400 uppercase mb-1 truncate">{{ t('income_short') }}</p><p class="text-[0.85em] font-black text-slate-700 dark:text-slate-200 truncate">${{ formatNumber(allDataTotals.income) }}</p></div>
+                    <div class="h-8 w-px bg-slate-100 dark:bg-[#2c2c2e]"></div>
+                    <div class="flex-1 min-w-0"><p class="text-[0.55em] font-black text-green-600 dark:text-green-400 uppercase mb-1 truncate">{{ t('expense_short') }}</p><p class="text-[0.85em] font-black text-slate-700 dark:text-slate-200 truncate">${{ formatNumber(allDataTotals.expense) }}</p></div>
+                    <div class="h-8 w-px bg-slate-100 dark:bg-[#2c2c2e]"></div>
+                    <div class="flex-1 min-w-0"><p class="text-[0.55em] font-black text-indigo-500 dark:text-indigo-400 uppercase mb-1 truncate">{{ t('balance') }}</p><p class="text-[0.85em] font-black text-slate-700 dark:text-slate-200 truncate">${{ formatNumber(allDataTotals.net) }}</p></div>
+                    <div class="h-8 w-px bg-slate-100 dark:bg-[#2c2c2e]"></div>
+                    <div class="flex-1 min-w-0"><p class="text-[0.55em] font-black text-orange-500 dark:text-orange-400 uppercase mb-1 truncate">{{ t('unrealized_pl_short') }}</p><p :class="stockTotalProfit >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'" class="text-[0.85em] font-black truncate">${{ formatNumber(stockTotalProfit) }}</p></div>
                 </div>
 
-                <div class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow flex flex-col items-center border border-slate-50 overflow-hidden">
+                <div class="bg-white dark:bg-[#1c1c1e] p-6 sm:p-8 rounded-[2rem] card-shadow flex flex-col items-center border border-slate-50 dark:border-[#2c2c2e] overflow-hidden">
                     <div class="flex justify-between items-center w-full mb-6 px-1">
-                        <h4 class="text-[0.75em] font-black text-slate-400 uppercase tracking-widest">{{ chartMode === 'expense' ? t('expense_structure') : t('income_structure') }}</h4>
-                        <div class="flex bg-slate-50 p-1 rounded-full text-[0.75em] font-black border border-slate-100 overflow-hidden">
-                            <button @click="chartMode = 'expense'" :class="chartMode === 'expense' ? 'bg-green-600 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-1.5 rounded-full transition-all active:scale-95">{{ t('expense_short') }}</button>
-                            <button @click="chartMode = 'income'" :class="chartMode === 'income' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400'" class="px-5 py-1.5 rounded-full transition-all active:scale-95">{{ t('income_short') }}</button>
+                        <h4 class="text-[0.75em] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{{ chartMode === 'expense' ? t('expense_structure') : t('income_structure') }}</h4>
+                        <div class="flex bg-slate-50 dark:bg-[#2c2c2e] p-1 rounded-full text-[0.75em] font-black border border-slate-100 dark:border-[#3a3a3c] overflow-hidden">
+                            <button @click="chartMode = 'expense'" :class="chartMode === 'expense' ? 'bg-green-600 text-white shadow-sm' : 'text-slate-400 dark:text-slate-400'" class="px-5 py-1.5 rounded-full transition-all active:scale-95">{{ t('expense_short') }}</button>
+                            <button @click="chartMode = 'income'" :class="chartMode === 'income' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400 dark:text-slate-400'" class="px-5 py-1.5 rounded-full transition-all active:scale-95">{{ t('income_short') }}</button>
                         </div>
                     </div>
                     
                     <div class="pie-chart-flat" :style="{ background: pieGradient }">
-                        <div class="pie-hole">
-                            <p class="text-[0.6em] text-slate-400 font-black uppercase tracking-widest mb-1">{{ chartMode === 'expense' ? t('expense') : t('income') }}</p>
-                            <p class="text-[1.25em] font-black leading-tight" :class="chartMode === 'expense' ? 'text-green-600' : 'text-red-500'">${{ formatNumber(chartTotalValue) }}</p>
+                        <div class="pie-hole bg-white dark:bg-[#1c1c1e] transition-colors">
+                            <p class="text-[0.6em] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest mb-1">{{ chartMode === 'expense' ? t('expense') : t('income') }}</p>
+                            <p class="text-[1.25em] font-black leading-tight" :class="chartMode === 'expense' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'">${{ formatNumber(chartTotalValue) }}</p>
                         </div>
                     </div>
 
                     <div class="w-full mt-8 space-y-2">
                         <template v-for="(cat, cidx) in chartCategories" :key="cat.name">
-                             <div @click="jumpToCategoryDetails(cat.name)" class="group flex items-center p-3 rounded-[1.25rem] bg-white hover:bg-slate-50 active:bg-slate-50 border border-transparent hover:border-slate-100 transition-all cursor-pointer">
-                                <div class="w-8 text-center text-[0.75em] font-black text-slate-300">{{ cidx + 1 }}</div>
+                             <div @click="jumpToCategoryDetails(cat.name)" class="group flex items-center p-3 rounded-[1.25rem] bg-white dark:bg-[#1c1c1e] hover:bg-slate-50 dark:hover:bg-[#2c2c2e] active:bg-slate-50 dark:active:bg-[#2c2c2e] border border-transparent hover:border-slate-100 dark:hover:border-[#3a3a3c] transition-all cursor-pointer">
+                                <div class="w-8 text-center text-[0.75em] font-black text-slate-300 dark:text-slate-600">{{ cidx + 1 }}</div>
                                 <div class="w-4 h-4 rounded-full mr-3 shrink-0 shadow-sm" :style="{backgroundColor: cat.color}"></div>
                                 <div class="flex flex-col min-w-0 flex-1 text-left">
                                     <div class="flex justify-between items-center mb-1.5">
-                                        <span class="text-[0.85em] font-black text-slate-700 truncate">{{ cat.name }}</span>
-                                        <span class="text-[0.8em] font-black" :class="chartMode==='expense'?'text-green-600':'text-red-500'">${{ formatNumber(cat.value) }}</span>
+                                        <span class="text-[0.85em] font-black text-slate-700 dark:text-slate-200 truncate">{{ cat.name }}</span>
+                                        <span class="text-[0.8em] font-black" :class="chartMode==='expense'?'text-green-600 dark:text-green-400':'text-red-500 dark:text-red-400'">${{ formatNumber(cat.value) }}</span>
                                     </div>
-                                    <div class="h-1.5 bg-slate-100 rounded-full w-full overflow-hidden">
+                                    <div class="h-1.5 bg-slate-100 dark:bg-[#2c2c2e] rounded-full w-full overflow-hidden">
                                         <div class="h-full rounded-full transition-all duration-700" :style="{ width: (cat.value / chartTotalValue * 100) + '%', backgroundColor: cat.color }"></div>
                                     </div>
                                 </div>
                                 <div class="w-12 text-right">
-                                    <span class="text-[0.75em] font-bold text-slate-400">{{ chartTotalValue > 0 ? Math.round((cat.value / chartTotalValue) * 100) : 0 }}%</span>
+                                    <span class="text-[0.75em] font-bold text-slate-400 dark:text-slate-500">{{ chartTotalValue > 0 ? Math.round((cat.value / chartTotalValue) * 100) : 0 }}%</span>
                                 </div>
-                                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 ml-1"></i>
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 dark:text-slate-600 ml-1"></i>
                             </div>
                         </template>
-                        <div v-if="chartCategories.length === 0" class="py-12 opacity-30 text-center font-black text-[0.85em]">目前無資料</div>
+                        <div v-if="chartCategories.length === 0" class="py-12 opacity-30 text-center font-black text-[0.85em] dark:text-slate-500">目前無資料</div>
                     </div>
                 </div>
             </section>
@@ -427,46 +441,53 @@
             <!-- 設定分頁 -->
             <section v-if="currentView === 'settings'" class="p-5 space-y-6">
                 <!-- 帳號與同步區塊 -->
-                <div class="bg-white rounded-[2rem] p-6 card-shadow space-y-6 border border-slate-100">
+                <div class="bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 card-shadow space-y-6 border border-slate-100 dark:border-[#2c2c2e] transition-colors">
                     <div class="flex items-center gap-4 mb-2">
-                        <div class="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-indigo-600 shadow-inner overflow-hidden shrink-0">
+                        <div class="w-14 h-14 rounded-full bg-slate-100 dark:bg-[#2c2c2e] flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-inner overflow-hidden shrink-0">
                             <img v-if="user?.photoURL" :src="user.photoURL" class="w-full h-full object-cover">
                             <i v-else data-lucide="user" class="w-6 h-6"></i>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <h3 class="text-[0.9em] font-black text-slate-800 uppercase tracking-widest truncate">{{ user ? user.email : t('account') }}</h3>
-                            <p class="text-[0.75em] font-bold text-slate-400 mt-1">{{ user ? 'Google Account' : t('not_logged_in') }}</p>
+                            <h3 class="text-[0.9em] font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest truncate">{{ user ? user.email : t('account') }}</h3>
+                            <p class="text-[0.75em] font-bold text-slate-400 dark:text-slate-500 mt-1">{{ user ? 'Google Account' : t('not_logged_in') }}</p>
                         </div>
                     </div>
                     
                     <div v-if="user" class="space-y-4">
-                        <div class="flex justify-between items-center bg-green-50 p-4 rounded-2xl border border-green-100">
-                            <span class="text-[0.75em] font-black text-green-700 tracking-widest uppercase">Cloud Status</span>
-                            <div class="flex items-center gap-1.5 text-green-600 font-black text-[0.75em]">
+                        <div class="flex justify-between items-center bg-green-50 dark:bg-green-900/30 p-4 rounded-2xl border border-green-100 dark:border-green-800/50">
+                            <span class="text-[0.75em] font-black text-green-700 dark:text-green-400 tracking-widest uppercase">Cloud Status</span>
+                            <div class="flex items-center gap-1.5 text-green-600 dark:text-green-400 font-black text-[0.75em]">
                                 <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Synchronized
                             </div>
                         </div>
-                        <button @click="handleLogout" class="w-full py-4 bg-slate-50 text-red-500 rounded-2xl font-black text-[0.85em] active:scale-95 transition-all">
+                        <button @click="handleLogout" class="w-full py-4 bg-slate-50 dark:bg-[#2c2c2e] text-red-500 dark:text-red-400 rounded-2xl font-black text-[0.85em] active:scale-95 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all">
                             {{ t('logout_btn') }}
                         </button>
                     </div>
                     <div v-else class="space-y-4">
-                        <p class="text-[0.75em] font-bold text-slate-500 leading-relaxed px-1">{{ t('sync_hint') }}</p>
+                        <p class="text-[0.75em] font-bold text-slate-500 dark:text-slate-400 leading-relaxed px-1">{{ t('sync_hint') }}</p>
                         <button @click="showLoginModal = true" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-[0.85em] shadow-md active:scale-95 transition-all flex items-center justify-center gap-2">
                             {{ t('login_start_btn') }}
                         </button>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-[2rem] p-6 card-shadow space-y-7 border border-slate-100">
-                    <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700">{{ t('lang_label') }}</span>
-                        <select v-model="settings.lang" class="bg-slate-50 rounded-xl px-4 py-2.5 font-black text-[1em] outline-none border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-p transition-all"><option value="zh">繁體中文</option><option value="en">English</option></select>
+                <div class="bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 card-shadow space-y-7 border border-slate-100 dark:border-[#2c2c2e] transition-colors">
+                    <!-- 深色模式切換 -->
+                    <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700 dark:text-slate-200">{{ t('theme_mode') }}</span>
+                        <div class="flex bg-slate-50 dark:bg-[#2c2c2e] p-1 rounded-xl ring-1 ring-slate-100 dark:ring-[#3a3a3c] overflow-hidden">
+                            <button @click="settings.darkMode = false; syncToCloud()" :style="!settings.darkMode ? { backgroundColor: settings.themeColor, color: 'white' } : {}" class="px-4 py-2 text-[0.75em] font-black rounded-lg transition-all" :class="settings.darkMode ? 'text-slate-500 dark:text-slate-400' : ''">{{ t('light_mode') }}</button>
+                            <button @click="settings.darkMode = true; syncToCloud()" :style="settings.darkMode ? { backgroundColor: settings.themeColor, color: 'white' } : {}" class="px-4 py-2 text-[0.75em] font-black rounded-lg transition-all" :class="!settings.darkMode ? 'text-slate-500 dark:text-slate-400' : ''">{{ t('dark_mode') }}</button>
+                        </div>
                     </div>
-                    <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700">{{ t('theme_label') }}</span>
-                        <div class="flex gap-2.5"><div v-for="color in ['#4f46e5', '#10b981', '#f43f5e', '#1e293b', '#f59e0b']" @click="settings.themeColor = color" :style="{ backgroundColor: color }" class="w-8 h-8 rounded-full cursor-pointer border-2 shadow-sm active:scale-75 transition-all" :class="settings.themeColor === color ? 'border-white ring-2 ring-indigo-200 scale-110' : 'border-transparent'"></div></div>
+                    <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700 dark:text-slate-200">{{ t('lang_label') }}</span>
+                        <select v-model="settings.lang" @change="syncToCloud" class="bg-slate-50 dark:bg-[#2c2c2e] text-slate-900 dark:text-white rounded-xl px-4 py-2.5 font-black text-[1em] outline-none border border-transparent dark:border-[#3a3a3c] focus:ring-2 focus:ring-p transition-all"><option value="zh">繁體中文</option><option value="en">English</option></select>
                     </div>
-                    <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700">{{ t('font_label') }}</span>
-                        <div class="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 overflow-hidden"><button v-for="sz in ['small', 'medium', 'large']" :key="sz" @click="settings.fontSize = sz" :style="settings.fontSize === sz ? { backgroundColor: settings.themeColor, color: 'white' } : {}" class="px-4 py-2 text-[0.75em] font-black rounded-lg transition-all">{{ t('font_' + sz) }}</button></div>
+                    <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700 dark:text-slate-200">{{ t('theme_label') }}</span>
+                        <div class="flex gap-2.5"><div v-for="color in ['#4f46e5', '#10b981', '#f43f5e', '#1e293b', '#f59e0b']" @click="settings.themeColor = color; syncToCloud()" :style="{ backgroundColor: color }" class="w-8 h-8 rounded-full cursor-pointer border-2 shadow-sm active:scale-75 transition-all" :class="settings.themeColor === color ? 'border-white dark:border-[#1c1c1e] ring-2 ring-indigo-200 dark:ring-indigo-700 scale-110' : 'border-transparent'"></div></div>
+                    </div>
+                    <div class="flex justify-between items-center"><span class="text-[0.9em] font-black text-slate-700 dark:text-slate-200">{{ t('font_label') }}</span>
+                        <div class="flex bg-slate-50 dark:bg-[#2c2c2e] p-1 rounded-xl ring-1 ring-slate-100 dark:ring-[#3a3a3c] overflow-hidden"><button v-for="sz in ['small', 'medium', 'large']" :key="sz" @click="settings.fontSize = sz; syncToCloud()" :style="settings.fontSize === sz ? { backgroundColor: settings.themeColor, color: 'white' } : {}" class="px-4 py-2 text-[0.75em] font-black rounded-lg transition-all dark:text-slate-300">{{ t('font_' + sz) }}</button></div>
                     </div>
                 </div>
                 <div class="version-watermark">{{ version }}</div>
@@ -476,12 +497,12 @@
         <!-- 登入選單彈窗 -->
         <transition name="fade">
             <div v-if="showLoginModal" class="fixed inset-0 z-[210] flex items-center justify-center p-6">
-                <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showLoginModal = false"></div>
-                <div class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in duration-200 text-center">
-                    <h2 class="text-[1.25em] font-black text-slate-800 mb-2">登入 LifeTrack</h2>
-                    <p class="text-[0.75em] font-bold text-slate-400 mb-8 leading-relaxed">選擇您的登入方式以開始同步</p>
+                <div class="absolute inset-0 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm" @click="showLoginModal = false"></div>
+                <div class="relative w-full max-w-sm bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in duration-200 text-center">
+                    <h2 class="text-[1.25em] font-black text-slate-800 dark:text-slate-100 mb-2">登入 LifeTrack</h2>
+                    <p class="text-[0.75em] font-bold text-slate-400 dark:text-slate-500 mb-8 leading-relaxed">選擇您的登入方式以開始同步</p>
                     <div class="space-y-3">
-                        <button @click="handleGoogleLogin" class="w-full py-4 bg-white border-2 border-slate-100 text-slate-700 rounded-2xl font-black text-[0.85em] shadow-sm active:scale-95 transition-all flex items-center justify-center gap-3">
+                        <button @click="handleGoogleLogin" class="w-full py-4 bg-white dark:bg-[#2c2c2e] border-2 border-slate-100 dark:border-[#3a3a3c] text-slate-700 dark:text-slate-200 rounded-2xl font-black text-[0.85em] shadow-sm active:scale-95 transition-all flex items-center justify-center gap-3">
                             <svg class="w-5 h-5" viewBox="0 0 24 24">
                                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -491,7 +512,7 @@
                             使用 Google 帳號連結
                         </button>
                     </div>
-                    <button @click="showLoginModal = false" class="mt-8 text-[0.65em] font-black text-slate-300 uppercase tracking-widest hover:text-slate-500 transition-colors py-2 px-4">稍後再說</button>
+                    <button @click="showLoginModal = false" class="mt-8 text-[0.65em] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest hover:text-slate-500 transition-colors py-2 px-4">稍後再說</button>
                 </div>
             </div>
         </transition>
@@ -499,9 +520,9 @@
         <!-- 編輯/新增視窗 (Mobile Bottom Sheet) -->
         <transition name="fade">
             <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-end justify-center">
-                <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showAddModal = false"></div>
+                <div class="absolute inset-0 bg-slate-900/60 dark:bg-black/70 backdrop-blur-sm" @click="showAddModal = false"></div>
                 <!-- 綁定手勢事件 -->
-                <div class="relative w-full sm:max-w-md bg-white rounded-t-[2.5rem] p-6 modal-pb max-h-[90vh] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] modal-scrollable overflow-x-hidden" 
+                <div class="relative w-full sm:max-w-md bg-white dark:bg-[#1c1c1e] rounded-t-[2.5rem] p-6 modal-pb max-h-[90vh] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.5)] modal-scrollable overflow-x-hidden" 
                      :class="{ 'modal-transition': !isDraggingModal }" 
                      :style="modalStyle" 
                      @touchstart="handleModalTouchStart" 
@@ -509,89 +530,89 @@
                      @touchend="handleModalTouchEnd">
                      
                     <!-- 頂部拖曳把手 -->
-                    <div class="w-14 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 cursor-grab active:cursor-grabbing"></div>
+                    <div class="w-14 h-1.5 bg-slate-200 dark:bg-[#3a3a3c] rounded-full mx-auto mb-6 cursor-grab active:cursor-grabbing"></div>
                     
                     <div class="flex justify-between items-center mb-6 px-1">
                         <div class="flex items-center gap-1.5">
-                             <button @click="changeDate(-1)" class="p-2 text-slate-300 hover:text-p hover:bg-indigo-50 rounded-full active:scale-90 transition-all"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
-                             <h2 class="text-[1.25em] font-black text-slate-800 tabular-nums tracking-tight">{{ currentMonth+1 }}/{{ selectedDay }} <span class="text-[0.85em] text-slate-400 font-bold ml-1">{{ t('new_record') }}</span></h2>
-                             <button @click="changeDate(1)" class="p-2 text-slate-300 hover:text-p hover:bg-indigo-50 rounded-full active:scale-90 transition-all"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                             <button @click="changeDate(-1)" class="p-2 text-slate-300 dark:text-slate-500 hover:text-p hover:bg-indigo-50 dark:hover:bg-[#2c2c2e] rounded-full active:scale-90 transition-all"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                             <h2 class="text-[1.25em] font-black text-slate-800 dark:text-slate-100 tabular-nums tracking-tight">{{ currentMonth+1 }}/{{ selectedDay }} <span class="text-[0.85em] text-slate-400 dark:text-slate-500 font-bold ml-1">{{ t('new_record') }}</span></h2>
+                             <button @click="changeDate(1)" class="p-2 text-slate-300 dark:text-slate-500 hover:text-p hover:bg-indigo-50 dark:hover:bg-[#2c2c2e] rounded-full active:scale-90 transition-all"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
                         </div>
                         <button @click="saveRecord" :style="{ backgroundColor: settings.themeColor }" class="text-white px-8 py-2.5 rounded-full font-black shadow-md active:scale-95 transition-all text-[0.85em]">{{ t('save') }}</button>
                     </div>
 
                     <!-- 行事曆區塊 -->
-                    <div class="mb-6 bg-white border border-slate-100 rounded-3xl p-5 card-shadow">
+                    <div class="mb-6 bg-white dark:bg-[#1c1c1e] border border-slate-100 dark:border-[#2c2c2e] rounded-3xl p-5 card-shadow transition-colors">
                         <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-[0.85em] font-black text-slate-700 flex items-center gap-2">
+                            <h3 class="text-[0.85em] font-black text-slate-700 dark:text-slate-200 flex items-center gap-2">
                                 <div class="w-7 h-7 rounded-full flex items-center justify-center" :style="{ backgroundColor: settings.themeColor + '15', color: settings.themeColor }"><i data-lucide="calendar" class="w-4 h-4"></i></div>
                                 {{ t('calendar') }}
                             </h3>
-                            <button @click="toggleAddEventForm" class="w-8 h-8 flex items-center justify-center bg-slate-50 rounded-full text-slate-500 hover:bg-slate-200 transition-all active:scale-90">
-                                <i data-lucide="plus" class="w-4 h-4 transition-transform" :class="{'rotate-45 text-red-400': isAddingEvent && editingEventIdx === -1}"></i>
+                            <button @click="toggleAddEventForm" class="w-8 h-8 flex items-center justify-center bg-slate-50 dark:bg-[#2c2c2e] rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-[#3a3a3c] transition-all active:scale-90">
+                                <i data-lucide="plus" class="w-4 h-4 transition-transform" :class="{'rotate-45 text-red-400 dark:text-red-400': isAddingEvent && editingEventIdx === -1}"></i>
                             </button>
                         </div>
                         
                         <!-- 已建立的活動列表 -->
                         <div class="space-y-2 mb-4" v-if="form.events && form.events.length > 0">
                             <div v-for="(ev, idx) in form.events" :key="idx" 
-                                 class="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
+                                 class="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-[#2c2c2e] rounded-2xl border border-transparent hover:border-slate-200 dark:hover:border-[#3a3a3c] relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
                                  @touchstart="startEventLongPress(idx)" @touchend="endEventLongPress" 
                                  @mousedown="startEventLongPress(idx)" @mouseup="endEventLongPress">
                                 <div class="absolute left-0 top-0 bottom-0 w-1.5" :style="{ backgroundColor: getEventTypeColor(ev.type) }"></div>
                                 <div class="flex items-center gap-3 pl-3">
                                     <div>
-                                        <p class="text-[0.9em] font-black text-slate-800">{{ ev.title }}</p>
-                                        <div class="text-[0.75em] font-bold text-slate-500 mt-1 flex items-center flex-wrap gap-2">
-                                            <span class="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{{ ev.isAllDay ? t('all_day') : (formatAMPM(ev.startTime) + ' - ' + formatAMPM(ev.endTime)) }}</span>
-                                            <span v-if="ev.location" @click.stop="openGoogleMaps(ev.location)" class="text-indigo-600 cursor-pointer active:opacity-50 flex items-center bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                                        <p class="text-[0.9em] font-black text-slate-800 dark:text-slate-100">{{ ev.title }}</p>
+                                        <div class="text-[0.75em] font-bold text-slate-500 dark:text-slate-400 mt-1 flex items-center flex-wrap gap-2">
+                                            <span class="bg-white dark:bg-[#3a3a3c] dark:text-slate-200 px-2 py-0.5 rounded shadow-sm border border-slate-100 dark:border-[#3a3a3c]">{{ ev.isAllDay ? t('all_day') : (formatAMPM(ev.startTime) + ' - ' + formatAMPM(ev.endTime)) }}</span>
+                                            <span v-if="ev.location" @click.stop="openGoogleMaps(ev.location)" class="text-indigo-600 dark:text-indigo-400 cursor-pointer active:opacity-50 flex items-center bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-800">
                                                 <i data-lucide="map-pin" class="w-3 h-3 mr-1"></i>{{ ev.location }}
                                             </span>
                                         </div>
                                     </div>
                                 </div>
-                                <button @click.stop="form.events.splice(idx, 1)" class="p-2.5 text-slate-300 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors z-10 active:scale-90"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                <button @click.stop="form.events.splice(idx, 1)" class="p-2.5 text-slate-300 dark:text-slate-500 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 rounded-full transition-colors z-10 active:scale-90"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                             </div>
                         </div>
 
                         <!-- 新增/編輯活動表單 -->
-                        <div v-if="isAddingEvent" class="p-4 bg-slate-50 rounded-[1.5rem] border border-slate-100 space-y-3 animate-in slide-in-from-top-2">
-                            <input v-model="newEvent.title" type="text" class="w-full bg-white p-3.5 rounded-xl text-[1em] font-black outline-none focus:ring-2 ring-indigo-50 border border-slate-100 shadow-sm transition-all" :placeholder="t('event_title')">
-                            <input v-model="newEvent.location" type="text" class="w-full bg-white p-3.5 rounded-xl text-[1em] font-bold outline-none focus:ring-2 ring-indigo-50 border border-slate-100 shadow-sm transition-all" :placeholder="t('location')">
+                        <div v-if="isAddingEvent" class="p-4 bg-slate-50 dark:bg-[#111111] rounded-[1.5rem] border border-slate-100 dark:border-[#2c2c2e] space-y-3 animate-in slide-in-from-top-2">
+                            <input v-model="newEvent.title" type="text" class="w-full bg-white dark:bg-[#2c2c2e] p-3.5 rounded-xl text-[1em] font-black outline-none focus:ring-2 ring-indigo-50 dark:ring-indigo-900 border border-slate-100 dark:border-transparent shadow-sm transition-all text-slate-900 dark:text-white" :placeholder="t('event_title')">
+                            <input v-model="newEvent.location" type="text" class="w-full bg-white dark:bg-[#2c2c2e] p-3.5 rounded-xl text-[1em] font-bold outline-none focus:ring-2 ring-indigo-50 dark:ring-indigo-900 border border-slate-100 dark:border-transparent shadow-sm transition-all text-slate-900 dark:text-white" :placeholder="t('location')">
                             
-                            <div class="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
-                                <span class="text-[0.9em] font-bold text-slate-700">{{ t('all_day') }}</span>
+                            <div class="flex items-center justify-between bg-white dark:bg-[#2c2c2e] p-3.5 rounded-xl border border-slate-100 dark:border-transparent shadow-sm">
+                                <span class="text-[0.9em] font-bold text-slate-700 dark:text-slate-200">{{ t('all_day') }}</span>
                                 <label class="relative inline-flex items-center cursor-pointer active:scale-95 transition-transform">
                                   <input type="checkbox" v-model="newEvent.isAllDay" class="sr-only peer">
-                                  <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" :style="newEvent.isAllDay ? { backgroundColor: settings.themeColor } : {}"></div>
+                                  <div class="w-11 h-6 bg-slate-200 dark:bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" :style="newEvent.isAllDay ? { backgroundColor: settings.themeColor } : {}"></div>
                                 </label>
                             </div>
 
                             <div v-if="!newEvent.isAllDay" class="flex gap-3">
-                                <div class="flex-1 bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex flex-col focus-within:ring-2 ring-indigo-50 transition-all">
-                                    <span class="text-[0.75em] text-slate-400 font-bold uppercase mb-1">{{ t('start_time') }}</span>
-                                    <input type="time" v-model="newEvent.startTime" class="w-full text-[1em] font-black outline-none bg-transparent text-slate-700">
+                                <div class="flex-1 bg-white dark:bg-[#2c2c2e] p-3 rounded-xl border border-slate-100 dark:border-transparent shadow-sm flex flex-col focus-within:ring-2 ring-indigo-50 dark:ring-indigo-900 transition-all">
+                                    <span class="text-[0.75em] text-slate-400 dark:text-slate-500 font-bold uppercase mb-1">{{ t('start_time') }}</span>
+                                    <input type="time" v-model="newEvent.startTime" class="w-full text-[1em] font-black outline-none bg-transparent text-slate-700 dark:text-white">
                                 </div>
-                                <div class="flex-1 bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex flex-col focus-within:ring-2 ring-indigo-50 transition-all">
-                                    <span class="text-[0.75em] text-slate-400 font-bold uppercase mb-1">{{ t('end_time') }}</span>
-                                    <input type="time" v-model="newEvent.endTime" class="w-full text-[1em] font-black outline-none bg-transparent text-slate-700">
+                                <div class="flex-1 bg-white dark:bg-[#2c2c2e] p-3 rounded-xl border border-slate-100 dark:border-transparent shadow-sm flex flex-col focus-within:ring-2 ring-indigo-50 dark:ring-indigo-900 transition-all">
+                                    <span class="text-[0.75em] text-slate-400 dark:text-slate-500 font-bold uppercase mb-1">{{ t('end_time') }}</span>
+                                    <input type="time" v-model="newEvent.endTime" class="w-full text-[1em] font-black outline-none bg-transparent text-slate-700 dark:text-white">
                                 </div>
                             </div>
 
                             <div class="flex gap-2 items-center">
-                                <div class="flex-1 bg-white rounded-xl border border-slate-100 shadow-sm flex focus-within:ring-2 ring-indigo-50 transition-all">
-                                    <select v-model="newEvent.type" class="w-full p-3.5 text-[1em] font-bold outline-none bg-transparent text-slate-700">
+                                <div class="flex-1 bg-white dark:bg-[#2c2c2e] rounded-xl border border-slate-100 dark:border-transparent shadow-sm flex focus-within:ring-2 ring-indigo-50 dark:ring-indigo-900 transition-all">
+                                    <select v-model="newEvent.type" class="w-full p-3.5 text-[1em] font-bold outline-none bg-transparent text-slate-700 dark:text-white">
                                         <option v-for="typ in eventTypes" :key="typ.name" :value="typ.name">{{ typ.name }}</option>
                                     </select>
                                 </div>
-                                <button @click="openEditEventTypeModal(newEvent.type)" class="w-12 h-12 bg-white border border-slate-100 shadow-sm rounded-xl flex items-center justify-center active:scale-95 transition-all hover:bg-slate-50" title="編輯類型">
-                                    <div class="w-5 h-5 rounded-full shadow-inner border border-slate-100" :style="{ backgroundColor: getEventTypeColor(newEvent.type) }"></div>
+                                <button @click="openEditEventTypeModal(newEvent.type)" class="w-12 h-12 bg-white dark:bg-[#2c2c2e] border border-slate-100 dark:border-transparent shadow-sm rounded-xl flex items-center justify-center active:scale-95 transition-all hover:bg-slate-50 dark:hover:bg-[#3a3a3c]" title="編輯類型">
+                                    <div class="w-5 h-5 rounded-full shadow-inner border border-slate-100 dark:border-slate-600" :style="{ backgroundColor: getEventTypeColor(newEvent.type) }"></div>
                                 </button>
-                                <button @click="openAddEventTypeModal" class="w-12 h-12 bg-white border border-slate-100 shadow-sm text-slate-400 hover:text-slate-600 rounded-xl flex items-center justify-center font-black active:scale-95 transition-all" title="新增類型"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                                <button @click="openAddEventTypeModal" class="w-12 h-12 bg-white dark:bg-[#2c2c2e] border border-slate-100 dark:border-transparent shadow-sm text-slate-400 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white rounded-xl flex items-center justify-center font-black active:scale-95 transition-all" title="新增類型"><i data-lucide="plus" class="w-5 h-5"></i></button>
                             </div>
 
                             <div class="flex gap-2 pt-2">
-                                <button v-if="editingEventIdx !== -1" @click="cancelEditEvent" class="flex-1 text-slate-500 py-3.5 rounded-xl font-black text-[0.9em] shadow-sm bg-white border border-slate-200 active:scale-95 transition-all">{{ t('cancel') }}</button>
+                                <button v-if="editingEventIdx !== -1" @click="cancelEditEvent" class="flex-1 text-slate-500 dark:text-slate-400 py-3.5 rounded-xl font-black text-[0.9em] shadow-sm bg-white dark:bg-[#2c2c2e] border border-slate-200 dark:border-transparent active:scale-95 transition-all">{{ t('cancel') }}</button>
                                 <button @click="addEvent" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-3.5 rounded-xl font-black text-[0.9em] shadow-md active:scale-95 transition-all">
                                     {{ editingEventIdx !== -1 ? t('save_changes') : t('add_event') }}
                                 </button>
@@ -599,31 +620,31 @@
                         </div>
                     </div>
 
-                    <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-6"><button @click="editTab = 'diary'" :class="editTab === 'diary' ? 'bg-white shadow font-black' : 'text-slate-500 font-bold'" :style="editTab === 'diary' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.85em] rounded-xl transition-all active:scale-95">{{ t('daily_diary') }}</button><button @click="editTab = 'finance'" :class="editTab === 'finance' ? 'bg-white shadow font-black' : 'text-slate-500 font-bold'" :style="editTab === 'finance' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.85em] rounded-xl transition-all active:scale-95">{{ t('daily_finance') }}</button></div>
+                    <div class="flex bg-slate-100 dark:bg-[#2c2c2e] p-1.5 rounded-2xl mb-6"><button @click="editTab = 'diary'" :class="editTab === 'diary' ? 'bg-white dark:bg-[#1c1c1e] shadow font-black text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 font-bold'" :style="editTab === 'diary' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.85em] rounded-xl transition-all active:scale-95">{{ t('daily_diary') }}</button><button @click="editTab = 'finance'" :class="editTab === 'finance' ? 'bg-white dark:bg-[#1c1c1e] shadow font-black text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 font-bold'" :style="editTab === 'finance' ? { color: settings.themeColor } : {}" class="flex-1 py-3 text-[0.85em] rounded-xl transition-all active:scale-95">{{ t('daily_finance') }}</button></div>
                     
                     <div v-if="editTab === 'finance'" class="space-y-6">
                         <div class="space-y-3">
-                            <div v-for="(rec, ridx) in form.records" :key="ridx" class="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-100 card-shadow overflow-hidden active:scale-[0.98] transition-all"><div class="flex items-center min-w-0 flex-1"><div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center mr-3 text-[1.25em] shadow-inner shrink-0">{{ getCategoryIcon(rec?.category) }}</div><div class="min-w-0 flex-1"><p class="text-[0.9em] font-black text-slate-800">{{ rec?.category }}</p><p v-if="rec?.note" class="text-[0.75em] text-slate-400 font-bold truncate pr-4 mt-0.5">{{ rec?.note }}</p></div></div><div class="flex items-center gap-3"><span :class="rec?.type === 'income' ? 'text-red-600' : 'text-green-600'" class="font-mono font-black text-[0.9em]">{{ rec?.type === 'income' ? '+' : '-' }}{{ formatNumber(rec?.amount) }}</span><button @click="form.records.splice(ridx, 1)" class="text-slate-300 hover:text-red-400 hover:bg-red-50 p-2 rounded-full transition-colors active:scale-90"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>
+                            <div v-for="(rec, ridx) in form.records" :key="ridx" class="flex items-center justify-between bg-white dark:bg-[#1c1c1e] p-4 rounded-2xl border border-slate-100 dark:border-[#2c2c2e] card-shadow overflow-hidden active:scale-[0.98] transition-all"><div class="flex items-center min-w-0 flex-1"><div class="w-12 h-12 rounded-xl bg-slate-50 dark:bg-[#2c2c2e] flex items-center justify-center mr-3 text-[1.25em] shadow-inner shrink-0">{{ getCategoryIcon(rec?.category) }}</div><div class="min-w-0 flex-1"><p class="text-[0.9em] font-black text-slate-800 dark:text-slate-100">{{ rec?.category }}</p><p v-if="rec?.note" class="text-[0.75em] text-slate-400 dark:text-slate-500 font-bold truncate pr-4 mt-0.5">{{ rec?.note }}</p></div></div><div class="flex items-center gap-3"><span :class="rec?.type === 'income' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'" class="font-mono font-black text-[0.9em]">{{ rec?.type === 'income' ? '+' : '-' }}{{ formatNumber(rec?.amount) }}</span><button @click="form.records.splice(ridx, 1)" class="text-slate-300 dark:text-slate-600 hover:text-red-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-full transition-colors active:scale-90"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>
                         </div>
-                        <div class="p-6 bg-slate-50/80 rounded-[2rem] border border-slate-100 space-y-6">
-                            <div class="flex justify-between items-center px-1"><span class="text-[0.75em] font-black text-slate-500 tracking-widest uppercase">{{ t('add_new_line') }}</span><div class="flex bg-white p-1 rounded-full shadow-sm text-[0.75em] font-black border border-slate-100 overflow-hidden"><button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-green-600 text-white shadow-md' : 'text-slate-400'" class="px-5 py-2 rounded-full transition-all active:scale-95">{{ t('expense_short') }}</button><button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-red-500 text-white shadow-md' : 'text-slate-400'" class="px-5 py-2 rounded-full transition-all active:scale-95">{{ t('income_short') }}</button></div></div>
+                        <div class="p-6 bg-slate-50/80 dark:bg-[#111111]/80 rounded-[2rem] border border-slate-100 dark:border-[#2c2c2e] space-y-6">
+                            <div class="flex justify-between items-center px-1"><span class="text-[0.75em] font-black text-slate-500 dark:text-slate-400 tracking-widest uppercase">{{ t('add_new_line') }}</span><div class="flex bg-white dark:bg-[#1c1c1e] p-1 rounded-full shadow-sm text-[0.75em] font-black border border-slate-100 dark:border-[#2c2c2e] overflow-hidden"><button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-green-600 dark:bg-green-700 text-white shadow-md' : 'text-slate-400 dark:text-slate-500'" class="px-5 py-2 rounded-full transition-all active:scale-95">{{ t('expense_short') }}</button><button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-red-500 dark:bg-red-600 text-white shadow-md' : 'text-slate-400 dark:text-slate-500'" class="px-5 py-2 rounded-full transition-all active:scale-95">{{ t('income_short') }}</button></div></div>
                             <div class="grid grid-cols-4 gap-2 px-1">
-                                <button v-for="cat in currentCategories" :key="cat?.name" @click="newRecord.category = cat.name" @touchstart="startCategoryLongPress(cat)" @touchend="endCategoryLongPress" @mousedown="startCategoryLongPress(cat)" @mouseup="endCategoryLongPress" :class="newRecord.category === cat?.name ? 'ring-2 ring-p bg-white scale-105 shadow-md' : 'bg-white border border-slate-100 shadow-sm'" class="category-btn py-2.5 px-1 transition-all"><span class="text-[1.5em] mb-1.5">{{ cat?.icon }}</span><span class="text-[11px] leading-tight break-words line-clamp-2 font-black w-full text-center text-slate-600 px-0.5">{{ cat?.name }}</span></button>
-                                <button @click="showAddCategory = true" class="category-btn bg-transparent border-2 border-dashed border-slate-300 active:scale-90 flex items-center justify-center hover:bg-slate-100 min-h-[64px]"><i data-lucide="plus" class="w-6 h-6 text-slate-400"></i></button>
+                                <button v-for="cat in currentCategories" :key="cat?.name" @click="newRecord.category = cat.name" @touchstart="startCategoryLongPress(cat)" @touchend="endCategoryLongPress" @mousedown="startCategoryLongPress(cat)" @mouseup="endCategoryLongPress" :class="newRecord.category === cat?.name ? 'ring-2 ring-p bg-white dark:bg-[#2c2c2e] scale-105 shadow-md' : 'bg-white dark:bg-[#1c1c1e] border border-slate-100 dark:border-[#2c2c2e] shadow-sm'" class="category-btn py-2.5 px-1 transition-all"><span class="text-[1.5em] mb-1.5">{{ cat?.icon }}</span><span class="text-[11px] leading-tight break-words line-clamp-2 font-black w-full text-center text-slate-600 dark:text-slate-300 px-0.5">{{ cat?.name }}</span></button>
+                                <button @click="showAddCategory = true" class="category-btn bg-transparent border-2 border-dashed border-slate-300 dark:border-slate-600 active:scale-90 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-[#2c2c2e] min-h-[64px]"><i data-lucide="plus" class="w-6 h-6 text-slate-400 dark:text-slate-500"></i></button>
                             </div>
                             <div class="flex gap-3 items-center w-full">
-                                <div class="w-1/3 shrink-0"><input type="number" v-model="newRecord.amount" class="w-full bg-white p-3.5 rounded-xl outline-none font-black text-[1em] border border-slate-100 shadow-sm text-center focus:ring-2 ring-indigo-50 transition-all" :placeholder="t('amount_ph')"></div>
-                                <div class="flex-1 min-w-0"><input type="text" v-model="newRecord.note" class="w-full bg-white p-3.5 rounded-xl outline-none font-bold text-[1em] border border-slate-100 shadow-sm focus:ring-2 ring-indigo-50 transition-all" :placeholder="t('note_ph')"></div>
+                                <div class="w-1/3 shrink-0"><input type="number" v-model="newRecord.amount" class="w-full bg-white dark:bg-[#2c2c2e] p-3.5 rounded-xl outline-none font-black text-[1em] border border-slate-100 dark:border-transparent shadow-sm text-center focus:ring-2 ring-indigo-50 dark:ring-indigo-900 transition-all text-slate-900 dark:text-white" :placeholder="t('amount_ph')"></div>
+                                <div class="flex-1 min-w-0"><input type="text" v-model="newRecord.note" class="w-full bg-white dark:bg-[#2c2c2e] p-3.5 rounded-xl outline-none font-bold text-[1em] border border-slate-100 dark:border-transparent shadow-sm focus:ring-2 ring-indigo-50 dark:ring-indigo-900 transition-all text-slate-900 dark:text-white" :placeholder="t('note_ph')"></div>
                             </div>
                             <button @click="addNewRecord" :style="{ backgroundColor: settings.themeColor }" class="w-full text-white py-4 rounded-xl font-black text-[0.9em] shadow-md active:scale-95 transition-all">{{ t('add_to_list') }}</button>
                         </div>
                     </div>
                     <div v-if="editTab === 'diary'" class="space-y-6">
-                        <div class="flex items-center justify-between bg-slate-50 p-4 rounded-3xl border border-slate-100"><div class="flex items-center"><div class="w-12 h-12 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center mr-4" :class="{'recording-pulse': isRecording}"><i data-lucide="mic" class="w-5 h-5" :class="isRecording ? 'text-red-500' : 'text-p'"></i></div><div class="flex flex-col"><span class="text-[0.85em] font-black text-slate-800">{{ isRecording ? t('recording') : (form.audio ? t('recorded') : t('voice_memo')) }}</span><span class="text-[0.75em] text-slate-400 font-bold mt-0.5">Voice Note</span></div></div><div class="flex gap-2"><button v-if="!isRecording" @click="startRecording" class="w-12 h-12 flex items-center justify-center bg-p text-white rounded-2xl shadow-md active:scale-90 transition-all"><i data-lucide="play" class="w-4 h-4 fill-current text-white ml-0.5"></i></button><button v-else @click="stopRecording" class="w-12 h-12 flex items-center justify-center bg-red-500 text-white rounded-2xl shadow-md animate-pulse"><i data-lucide="square" class="w-4 h-4 fill-current text-white"></i></button><button v-if="form.audio && !isRecording" @click="playAudio(form.audio)" class="w-12 h-12 flex items-center justify-center bg-indigo-50 text-p rounded-2xl active:scale-90 border border-indigo-100"><i data-lucide="volume-2" class="w-5 h-5"></i></button></div></div>
-                        <div class="space-y-3 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm"><label class="text-[0.75em] font-black text-slate-500 uppercase tracking-widest block mb-2">{{ t('journal_feeling') }}</label><div class="flex gap-3 overflow-x-auto hide-scrollbar pb-2"><button v-for="f in ['😊','😔','😡','🤩','😴','💪','🍷','🏢','✈️']" :key="f" @click="form.feeling = f" :class="form.feeling === f ? 'scale-110 ring-2 ring-orange-200 bg-orange-50 shadow-sm' : 'opacity-60 bg-slate-50'" class="text-[1.5em] w-12 h-12 shrink-0 flex items-center justify-center rounded-2xl transition-all active:scale-95">{{ f }}</button></div></div>
-                        <div class="space-y-3 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm"><div class="flex justify-between items-center"><label class="text-[0.75em] font-black text-slate-500 uppercase tracking-widest">{{ t('photo') }} ({{ form.photos?.length || 0 }}/10)</label><div class="relative w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center active:scale-90 transition-all hover:bg-slate-100"><i data-lucide="camera" class="w-4 h-4 text-slate-500"></i><input type="file" multiple @change="handleMultiPhotoUpload" class="absolute inset-0 opacity-0 cursor-pointer"></div></div><div v-if="form.photos?.length" class="flex gap-3 overflow-x-auto py-2 hide-scrollbar"><div v-for="(img, idx) in form.photos" :key="idx" class="relative shrink-0"><img :src="img" class="w-20 h-20 rounded-2xl object-cover shadow-sm border border-slate-100"><button @click="form.photos.splice(idx, 1)" class="absolute -top-2 -right-2 bg-slate-800/80 backdrop-blur text-white rounded-full p-1.5 shadow-lg active:scale-90"><i data-lucide="x" class="w-3 h-3 text-white"></i></button></div></div></div>
-                        <div class="space-y-4 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm"><div class="flex justify-between items-center"><label class="text-[0.75em] font-black text-slate-500 uppercase tracking-widest">{{ t('location_map') }}</label><button @click="openGoogleMapsSearch" class="px-4 py-1.5 bg-indigo-50 text-p rounded-lg text-[0.75em] font-black active:scale-95 transition-all border border-indigo-100 flex items-center gap-1.5"><i data-lucide="map" class="w-3 h-3"></i>{{ t('search_on_map') }}</button></div><div class="flex gap-2"><input v-model="locationSearch" @keyup.enter="addLocation" :placeholder="t('location_ph')" class="flex-1 bg-slate-50 p-3.5 rounded-xl text-[1em] font-bold outline-none border border-transparent focus:border-p transition-all focus:bg-white focus:shadow-sm"><button @click="addLocation" class="bg-p text-white w-14 rounded-xl flex items-center justify-center shadow-md active:scale-90 transition-all"><i data-lucide="plus" class="w-5 h-5 text-white"></i></button></div><div class="space-y-2"><div v-for="(loc, lidx) in form.locations" :key="lidx" class="flex justify-between items-center bg-slate-50 p-3.5 rounded-xl border border-slate-100 active:scale-[0.98] transition-all"><div class="flex items-center text-[0.9em] font-black text-slate-700 cursor-pointer" @click="openGoogleMaps(loc?.name)"><div class="w-8 h-8 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center mr-3"><i data-lucide="map-pin" class="w-4 h-4 text-p"></i></div><span>{{ loc?.name }}</span></div><button @click="form.locations.splice(lidx, 1)" class="text-slate-400 p-2 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div></div>
-                        <textarea v-model="form.diaryText" class="w-full h-48 bg-white p-5 rounded-3xl border border-slate-100 outline-none focus:ring-2 ring-indigo-50 shadow-sm text-[1em] font-bold leading-relaxed transition-all" :placeholder="t('journal_placeholder')"></textarea>
+                        <div class="flex items-center justify-between bg-slate-50 dark:bg-[#111111] p-4 rounded-3xl border border-slate-100 dark:border-[#2c2c2e]"><div class="flex items-center"><div class="w-12 h-12 rounded-2xl bg-white dark:bg-[#2c2c2e] shadow-sm border border-slate-100 dark:border-transparent flex items-center justify-center mr-4" :class="{'recording-pulse': isRecording}"><i data-lucide="mic" class="w-5 h-5" :class="isRecording ? 'text-red-500' : 'text-p'"></i></div><div class="flex flex-col"><span class="text-[0.85em] font-black text-slate-800 dark:text-slate-100">{{ isRecording ? t('recording') : (form.audio ? t('recorded') : t('voice_memo')) }}</span><span class="text-[0.75em] text-slate-400 dark:text-slate-500 font-bold mt-0.5">Voice Note</span></div></div><div class="flex gap-2"><button v-if="!isRecording" @click="startRecording" class="w-12 h-12 flex items-center justify-center bg-p text-white rounded-2xl shadow-md active:scale-90 transition-all"><i data-lucide="play" class="w-4 h-4 fill-current text-white ml-0.5"></i></button><button v-else @click="stopRecording" class="w-12 h-12 flex items-center justify-center bg-red-500 text-white rounded-2xl shadow-md animate-pulse"><i data-lucide="square" class="w-4 h-4 fill-current text-white"></i></button><button v-if="form.audio && !isRecording" @click="playAudio(form.audio)" class="w-12 h-12 flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 text-p rounded-2xl active:scale-90 border border-indigo-100 dark:border-indigo-800/50"><i data-lucide="volume-2" class="w-5 h-5"></i></button></div></div>
+                        <div class="space-y-3 bg-white dark:bg-[#1c1c1e] p-5 rounded-3xl border border-slate-100 dark:border-[#2c2c2e] shadow-sm"><label class="text-[0.75em] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest block mb-2">{{ t('journal_feeling') }}</label><div class="flex gap-3 overflow-x-auto hide-scrollbar pb-2"><button v-for="f in ['😊','😔','😡','🤩','😴','💪','🍷','🏢','✈️']" :key="f" @click="form.feeling = f" :class="form.feeling === f ? 'scale-110 ring-2 ring-orange-200 dark:ring-orange-800 bg-orange-50 dark:bg-orange-900/30 shadow-sm' : 'opacity-60 bg-slate-50 dark:bg-[#2c2c2e]'" class="text-[1.5em] w-12 h-12 shrink-0 flex items-center justify-center rounded-2xl transition-all active:scale-95">{{ f }}</button></div></div>
+                        <div class="space-y-3 bg-white dark:bg-[#1c1c1e] p-5 rounded-3xl border border-slate-100 dark:border-[#2c2c2e] shadow-sm"><div class="flex justify-between items-center"><label class="text-[0.75em] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{{ t('photo') }} ({{ form.photos?.length || 0 }}/10)</label><div class="relative w-10 h-10 bg-slate-50 dark:bg-[#2c2c2e] rounded-xl flex items-center justify-center active:scale-90 transition-all hover:bg-slate-100 dark:hover:bg-[#3a3a3c]"><i data-lucide="camera" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i><input type="file" multiple @change="handleMultiPhotoUpload" class="absolute inset-0 opacity-0 cursor-pointer"></div></div><div v-if="form.photos?.length" class="flex gap-3 overflow-x-auto py-2 hide-scrollbar"><div v-for="(img, idx) in form.photos" :key="idx" class="relative shrink-0"><img :src="img" class="w-20 h-20 rounded-2xl object-cover shadow-sm border border-slate-100 dark:border-[#2c2c2e]"><button @click="form.photos.splice(idx, 1)" class="absolute -top-2 -right-2 bg-slate-800/80 dark:bg-black/80 backdrop-blur text-white rounded-full p-1.5 shadow-lg active:scale-90"><i data-lucide="x" class="w-3 h-3 text-white"></i></button></div></div></div>
+                        <div class="space-y-4 bg-white dark:bg-[#1c1c1e] p-5 rounded-3xl border border-slate-100 dark:border-[#2c2c2e] shadow-sm"><div class="flex justify-between items-center"><label class="text-[0.75em] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{{ t('location_map') }}</label><button @click="openGoogleMapsSearch" class="px-4 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-p rounded-lg text-[0.75em] font-black active:scale-95 transition-all border border-indigo-100 dark:border-indigo-800/50 flex items-center gap-1.5"><i data-lucide="map" class="w-3 h-3"></i>{{ t('search_on_map') }}</button></div><div class="flex gap-2"><input v-model="locationSearch" @keyup.enter="addLocation" :placeholder="t('location_ph')" class="flex-1 bg-slate-50 dark:bg-[#2c2c2e] p-3.5 rounded-xl text-[1em] font-bold outline-none border border-transparent focus:border-p dark:focus:border-[#4f46e5] transition-all focus:bg-white dark:focus:bg-[#3a3a3c] focus:shadow-sm text-slate-900 dark:text-white"><button @click="addLocation" class="bg-p text-white w-14 rounded-xl flex items-center justify-center shadow-md active:scale-90 transition-all"><i data-lucide="plus" class="w-5 h-5 text-white"></i></button></div><div class="space-y-2"><div v-for="(loc, lidx) in form.locations" :key="lidx" class="flex justify-between items-center bg-slate-50 dark:bg-[#2c2c2e] p-3.5 rounded-xl border border-slate-100 dark:border-transparent active:scale-[0.98] transition-all"><div class="flex items-center text-[0.9em] font-black text-slate-700 dark:text-slate-200 cursor-pointer" @click="openGoogleMaps(loc?.name)"><div class="w-8 h-8 rounded-lg bg-white dark:bg-[#1c1c1e] shadow-sm border border-slate-100 dark:border-[#3a3a3c] flex items-center justify-center mr-3"><i data-lucide="map-pin" class="w-4 h-4 text-p"></i></div><span>{{ loc?.name }}</span></div><button @click="form.locations.splice(lidx, 1)" class="text-slate-400 dark:text-slate-500 p-2 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div></div>
+                        <textarea v-model="form.diaryText" class="w-full h-48 bg-white dark:bg-[#2c2c2e] p-5 rounded-3xl border border-slate-100 dark:border-transparent outline-none focus:ring-2 ring-indigo-50 dark:ring-indigo-900 shadow-sm text-[1em] font-bold leading-relaxed transition-all text-slate-900 dark:text-white" :placeholder="t('journal_placeholder')"></textarea>
                     </div>
                 </div>
             </div>
@@ -632,29 +653,29 @@
         <!-- 新增/編輯行事曆類型跳窗 -->
         <transition name="fade">
             <div v-if="showEventTypeModal" class="fixed inset-0 z-[220] flex items-center justify-center p-6">
-                <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showEventTypeModal = false"></div>
-                <div class="relative w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-2xl animate-in zoom-in">
+                <div class="absolute inset-0 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm" @click="showEventTypeModal = false"></div>
+                <div class="relative w-full max-w-sm bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-8 shadow-2xl animate-in zoom-in">
                     <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-[1.25em] font-black text-slate-800">{{ isEditingEventType ? t('edit_event_type') : t('add_event_type') }}</h3>
-                        <button v-if="isEditingEventType" @click="deleteEventType" class="p-2.5 text-red-400 bg-red-50 hover:bg-red-100 rounded-full transition-colors active:scale-90" title="刪除類型"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        <h3 class="text-[1.25em] font-black text-slate-800 dark:text-slate-100">{{ isEditingEventType ? t('edit_event_type') : t('add_event_type') }}</h3>
+                        <button v-if="isEditingEventType" @click="deleteEventType" class="p-2.5 text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors active:scale-90" title="刪除類型"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                     </div>
                     <div class="space-y-6">
-                        <input v-model="newEventType.name" type="text" class="w-full bg-slate-50 p-4 rounded-xl outline-none font-bold border border-slate-100 focus:border-p focus:bg-white text-[1em] transition-all" :placeholder="t('cat_name_ph')">
+                        <input v-model="newEventType.name" type="text" class="w-full bg-slate-50 dark:bg-[#2c2c2e] p-4 rounded-xl outline-none font-bold border border-slate-100 dark:border-transparent focus:border-p dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-[#3a3a3c] text-[1em] transition-all text-slate-900 dark:text-white" :placeholder="t('cat_name_ph')">
                         
                         <div>
-                            <p class="text-[0.75em] font-black text-slate-500 uppercase mb-4 tracking-widest">{{ t('choose_color') }}</p>
+                            <p class="text-[0.75em] font-black text-slate-500 dark:text-slate-400 uppercase mb-4 tracking-widest">{{ t('choose_color') }}</p>
                             <div class="flex gap-4 flex-wrap justify-start">
                                 <div v-for="color in ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#14b8a6', '#f43f5e', '#84cc16']" 
                                      @click="newEventType.color = color" 
                                      :style="{ backgroundColor: color }" 
                                      class="w-10 h-10 rounded-full cursor-pointer border-2 shadow-sm transition-all active:scale-90" 
-                                     :class="newEventType.color === color ? 'border-white ring-2 ring-indigo-300 scale-110 shadow-md' : 'border-transparent'">
+                                     :class="newEventType.color === color ? 'border-white dark:border-[#1c1c1e] ring-2 ring-indigo-300 dark:ring-indigo-500 scale-110 shadow-md' : 'border-transparent'">
                                 </div>
                             </div>
                         </div>
                         
                         <div class="flex gap-3 pt-4">
-                            <button @click="showEventTypeModal = false" class="flex-1 py-4 bg-slate-50 rounded-xl font-black text-slate-500 text-[0.9em] active:scale-95 transition-all">{{ t('cancel') }}</button>
+                            <button @click="showEventTypeModal = false" class="flex-1 py-4 bg-slate-50 dark:bg-[#2c2c2e] rounded-xl font-black text-slate-500 dark:text-slate-400 text-[0.9em] active:scale-95 transition-all">{{ t('cancel') }}</button>
                             <button @click="saveEventType" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-xl font-black shadow-md active:scale-95 text-[0.9em] transition-all">{{ t('confirm') }}</button>
                         </div>
                     </div>
@@ -663,15 +684,15 @@
         </transition>
 
         <!-- 明細跳窗 -->
-        <transition name="fade"><div v-if="showCategoryDetailModal" class="fixed inset-0 z-[120] flex items-end justify-center"><div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showCategoryDetailModal = false"></div><div class="relative w-full sm:max-w-md bg-white rounded-t-[2.5rem] p-6 modal-pb max-h-[85vh] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] modal-scrollable overflow-x-hidden" :class="{ 'modal-transition': !isDraggingModal }" :style="modalStyle" @touchstart="handleModalTouchStart" @touchmove="handleModalTouchMove" @touchend="handleModalTouchEnd"><button @click="showCategoryDetailModal = false" class="absolute top-6 right-6 p-2 text-slate-300 hover:bg-slate-100 rounded-full transition-all active:scale-90 z-[110]"><i data-lucide="x" class="w-5 h-5"></i></button><div class="w-14 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 cursor-grab"></div><div class="flex items-center gap-4 mb-6 px-1"><div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-[1.5em] shadow-sm border border-slate-100">{{ selectedCategoryForDetail?.icon || '?' }}</div><h2 class="text-[1.25em] font-black text-slate-800 tracking-tight">{{ selectedCategoryForDetail?.name }}</h2></div><div class="space-y-3 pb-8"><div v-for="(item, idx) in categoryDetailRecords" :key="idx" @click="jumpToEdit(item.date, item.originalIndex)" class="flex justify-between items-center bg-white border border-slate-100 shadow-sm p-4 rounded-2xl cursor-pointer hover:bg-slate-50 active:scale-[0.98] transition-all"><div class="flex flex-col"><span class="text-[0.65em] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{{ item.date }}</span><span class="text-[0.9em] font-black text-slate-700 truncate w-48">{{ item.record.note || '---' }}</span></div><div class="flex items-center gap-3"><span class="font-mono font-black text-[1em]" :class="item.record.type==='income'?'text-red-500':'text-green-600'">{{ item.record.type==='income'?'+':'-' }}{{ formatNumber(item.record.amount) }}</span><button @click.stop="deleteSpecificRecord(item.date, item.originalIndex)" class="text-slate-300 hover:bg-red-50 hover:text-red-500 p-2 rounded-full transition-colors active:scale-90"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div><div v-if="categoryDetailRecords.length === 0" class="text-center py-16 text-slate-400 font-bold text-[0.85em] bg-slate-50 rounded-3xl border border-slate-100 border-dashed">目前無此類別資料</div></div></div></div></transition>
-        <transition name="fade"><div v-if="showEditStockModal" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showEditStockModal = false"></div><div class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in"><h3 class="text-[1.25em] font-black mb-6 text-slate-800">編輯投資項目</h3><div class="space-y-5"><div class="p-4 bg-slate-50 rounded-2xl border border-slate-100"><p class="text-[0.75em] text-slate-400 font-bold uppercase mb-1 tracking-widest">股票名稱</p><p class="font-black text-p text-[1em]">{{ editingStock?.name || '---' }}</p></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[0.75em] text-slate-400 font-bold uppercase mb-2 px-1 tracking-widest">股數</p><input v-model.number="editingStock.qty" type="number" class="w-full bg-slate-50 border border-slate-100 p-3.5 rounded-xl font-black outline-none focus:bg-white focus:ring-2 ring-p transition-all text-center text-[1em]"></div><div><p class="text-[0.75em] text-slate-400 font-bold uppercase mb-2 px-1 tracking-widest">成本</p><input v-model.number="editingStock.buyPrice" type="number" class="w-full bg-slate-50 border border-slate-100 p-3.5 rounded-xl font-black outline-none focus:bg-white focus:ring-2 ring-p transition-all text-center text-[1em]"></div></div><div class="flex gap-3 pt-3"><button @click="showEditStockModal = false" class="flex-1 bg-slate-50 py-4 rounded-xl font-black text-slate-500 active:scale-95 transition-all text-[0.9em]">{{ t('cancel') }}</button><button @click="confirmEditStock" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-xl font-black shadow-md active:scale-95 transition-all text-[0.9em]">更新</button></div></div></div></div></transition>
-        <transition name="fade"><div v-if="showAddCategory || showEditCategory" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="closeCategoryModal"></div><div class="relative w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in"><h3 class="text-[1.25em] font-black mb-6 text-slate-800">{{ showEditCategory ? t('edit_cat_title') : t('custom_cat_title') }}</h3><div class="space-y-6"><div class="grid grid-cols-5 gap-2.5 max-h-48 overflow-y-auto p-1 hide-scrollbar"><button v-for="ico in iconPool" :key="ico" @click="categoryForm.icon = ico" :class="categoryForm.icon === ico ? 'bg-indigo-50 ring-2 ring-p shadow-sm scale-110 z-10' : 'bg-slate-50 opacity-70'" class="text-[1.5em] w-12 h-12 flex items-center justify-center rounded-2xl transition-all active:scale-95">{{ ico }}</button></div><input v-model="categoryForm.name" type="text" class="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl outline-none font-black focus:bg-white focus:ring-2 ring-p transition-all text-[1em]" :placeholder="t('cat_name_ph')"><div class="flex gap-3 pt-2"><button @click="closeCategoryModal" class="flex-1 py-4 bg-slate-50 rounded-xl font-black text-slate-500 text-[0.9em] active:scale-95 transition-all">{{ t('cancel') }}</button><button @click="confirmCategoryAction" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-xl font-black shadow-md active:scale-95 transition-all text-[0.9em]">{{ t('confirm') }}</button></div></div></div></div></transition>
+        <transition name="fade"><div v-if="showCategoryDetailModal" class="fixed inset-0 z-[120] flex items-end justify-center"><div class="absolute inset-0 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm" @click="showCategoryDetailModal = false"></div><div class="relative w-full sm:max-w-md bg-white dark:bg-[#1c1c1e] rounded-t-[2.5rem] p-6 modal-pb max-h-[85vh] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.5)] modal-scrollable overflow-x-hidden" :class="{ 'modal-transition': !isDraggingModal }" :style="modalStyle" @touchstart="handleModalTouchStart" @touchmove="handleModalTouchMove" @touchend="handleModalTouchEnd"><button @click="showCategoryDetailModal = false" class="absolute top-6 right-6 p-2 text-slate-300 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-[#2c2c2e] rounded-full transition-all active:scale-90 z-[110]"><i data-lucide="x" class="w-5 h-5"></i></button><div class="w-14 h-1.5 bg-slate-200 dark:bg-[#3a3a3c] rounded-full mx-auto mb-6 cursor-grab"></div><div class="flex items-center gap-4 mb-6 px-1"><div class="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-[#2c2c2e] flex items-center justify-center text-[1.5em] shadow-sm border border-slate-100 dark:border-transparent">{{ selectedCategoryForDetail?.icon || '?' }}</div><h2 class="text-[1.25em] font-black text-slate-800 dark:text-slate-100 tracking-tight">{{ selectedCategoryForDetail?.name }}</h2></div><div class="space-y-3 pb-8"><div v-for="(item, idx) in categoryDetailRecords" :key="idx" @click="jumpToEdit(item.date, item.originalIndex)" class="flex justify-between items-center bg-white dark:bg-[#2c2c2e] border border-slate-100 dark:border-transparent shadow-sm p-4 rounded-2xl cursor-pointer hover:bg-slate-50 dark:hover:bg-[#3a3a3c] active:scale-[0.98] transition-all"><div class="flex flex-col"><span class="text-[0.65em] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">{{ item.date }}</span><span class="text-[0.9em] font-black text-slate-700 dark:text-slate-200 truncate w-48">{{ item.record.note || '---' }}</span></div><div class="flex items-center gap-3"><span class="font-mono font-black text-[1em]" :class="item.record.type==='income'?'text-red-500 dark:text-red-400':'text-green-600 dark:text-green-400'">{{ item.record.type==='income'?'+':'-' }}{{ formatNumber(item.record.amount) }}</span><button @click.stop="deleteSpecificRecord(item.date, item.originalIndex)" class="text-slate-300 dark:text-slate-500 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 dark:hover:text-red-400 p-2 rounded-full transition-colors active:scale-90"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div><div v-if="categoryDetailRecords.length === 0" class="text-center py-16 text-slate-400 dark:text-slate-500 font-bold text-[0.85em] bg-slate-50 dark:bg-[#111111] rounded-3xl border border-slate-100 dark:border-[#2c2c2e] border-dashed">目前無此類別資料</div></div></div></div></transition>
+        <transition name="fade"><div v-if="showEditStockModal" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm" @click="showEditStockModal = false"></div><div class="relative w-full max-w-sm bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in"><h3 class="text-[1.25em] font-black mb-6 text-slate-800 dark:text-slate-100">編輯投資項目</h3><div class="space-y-5"><div class="p-4 bg-slate-50 dark:bg-[#2c2c2e] rounded-2xl border border-slate-100 dark:border-transparent"><p class="text-[0.75em] text-slate-400 dark:text-slate-500 font-bold uppercase mb-1 tracking-widest">股票名稱</p><p class="font-black text-p text-[1em]">{{ editingStock?.name || '---' }}</p></div><div class="grid grid-cols-2 gap-3"><div><p class="text-[0.75em] text-slate-400 dark:text-slate-500 font-bold uppercase mb-2 px-1 tracking-widest">股數</p><input v-model.number="editingStock.qty" type="number" class="w-full bg-slate-50 dark:bg-[#2c2c2e] border border-slate-100 dark:border-transparent p-3.5 rounded-xl font-black outline-none focus:bg-white dark:focus:bg-[#3a3a3c] focus:ring-2 ring-p transition-all text-center text-[1em] text-slate-900 dark:text-white"></div><div><p class="text-[0.75em] text-slate-400 dark:text-slate-500 font-bold uppercase mb-2 px-1 tracking-widest">成本</p><input v-model.number="editingStock.buyPrice" type="number" class="w-full bg-slate-50 dark:bg-[#2c2c2e] border border-slate-100 dark:border-transparent p-3.5 rounded-xl font-black outline-none focus:bg-white dark:focus:bg-[#3a3a3c] focus:ring-2 ring-p transition-all text-center text-[1em] text-slate-900 dark:text-white"></div></div><div class="flex gap-3 pt-3"><button @click="showEditStockModal = false" class="flex-1 bg-slate-50 dark:bg-[#2c2c2e] py-4 rounded-xl font-black text-slate-500 dark:text-slate-400 active:scale-95 transition-all text-[0.9em]">{{ t('cancel') }}</button><button @click="confirmEditStock" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-xl font-black shadow-md active:scale-95 transition-all text-[0.9em]">更新</button></div></div></div></div></transition>
+        <transition name="fade"><div v-if="showAddCategory || showEditCategory" class="fixed inset-0 z-[200] flex items-center justify-center p-6"><div class="absolute inset-0 bg-slate-900/40 dark:bg-black/70 backdrop-blur-sm" @click="closeCategoryModal"></div><div class="relative w-full max-w-sm bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in"><h3 class="text-[1.25em] font-black mb-6 text-slate-800 dark:text-slate-100">{{ showEditCategory ? t('edit_cat_title') : t('custom_cat_title') }}</h3><div class="space-y-6"><div class="grid grid-cols-5 gap-2.5 max-h-48 overflow-y-auto p-1 hide-scrollbar"><button v-for="ico in iconPool" :key="ico" @click="categoryForm.icon = ico" :class="categoryForm.icon === ico ? 'bg-indigo-50 dark:bg-[#2c2c2e] ring-2 ring-p shadow-sm scale-110 z-10' : 'bg-slate-50 dark:bg-[#2c2c2e] opacity-70'" class="text-[1.5em] w-12 h-12 flex items-center justify-center rounded-2xl transition-all active:scale-95">{{ ico }}</button></div><input v-model="categoryForm.name" type="text" class="w-full bg-slate-50 dark:bg-[#2c2c2e] border border-slate-100 dark:border-transparent p-4 rounded-xl outline-none font-black focus:bg-white dark:focus:bg-[#3a3a3c] focus:ring-2 ring-p transition-all text-[1em] text-slate-900 dark:text-white" :placeholder="t('cat_name_ph')"><div class="flex gap-3 pt-2"><button @click="closeCategoryModal" class="flex-1 py-4 bg-slate-50 dark:bg-[#2c2c2e] rounded-xl font-black text-slate-500 dark:text-slate-400 text-[0.9em] active:scale-95 transition-all">{{ t('cancel') }}</button><button @click="confirmCategoryAction" :style="{ backgroundColor: settings.themeColor }" class="flex-1 text-white py-4 rounded-xl font-black shadow-md active:scale-95 transition-all text-[0.9em]">{{ t('confirm') }}</button></div></div></div></div></transition>
 
         <!-- 底部導覽列 (Mobile Nav) -->
-        <nav class="absolute bottom-0 left-0 right-0 bg-white/85 backdrop-blur-xl border-t border-slate-200/50 nav-pb z-40 px-2 flex items-center justify-around shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.06)] shrink-0">
-            <button v-for="v in ['ledger', 'stocks', 'add', 'charts', 'settings']" :key="v" @click="v === 'add' ? openAddModal() : (currentView = v)" :style="(currentView === v && v !== 'add') ? { color: settings.themeColor } : {}" class="flex flex-col items-center justify-center transition-all flex-1 h-full pt-1" :class="[currentView === v ? 'nav-active scale-105' : 'text-slate-400', v === 'add' ? 'relative' : 'active:scale-90']">
+        <nav class="absolute bottom-0 left-0 right-0 bg-white/85 dark:bg-[#1c1c1e]/85 backdrop-blur-xl border-t border-slate-200/50 dark:border-[#2c2c2e]/50 nav-pb z-40 px-2 flex items-center justify-around shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.06)] dark:shadow-none shrink-0 transition-colors">
+            <button v-for="v in ['ledger', 'stocks', 'add', 'charts', 'settings']" :key="v" @click="v === 'add' ? openAddModal() : (currentView = v)" :style="(currentView === v && v !== 'add') ? { color: settings.themeColor } : {}" class="flex flex-col items-center justify-center transition-all flex-1 h-full pt-1" :class="[currentView === v ? 'nav-active scale-105' : 'text-slate-400 dark:text-slate-500', v === 'add' ? 'relative' : 'active:scale-90']">
                 <template v-if="v === 'add'">
-                    <div :style="{ backgroundColor: settings.themeColor }" class="text-white w-14 h-14 rounded-full shadow-lg border-4 border-white flex items-center justify-center -translate-y-5 active:scale-90 transition-transform">
+                    <div :style="{ backgroundColor: settings.themeColor }" class="text-white w-14 h-14 rounded-full shadow-lg border-4 border-white dark:border-[#1c1c1e] flex items-center justify-center -translate-y-5 active:scale-90 transition-transform">
                         <i data-lucide="plus" class="w-7 h-7"></i>
                     </div>
                 </template>
@@ -690,7 +711,7 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 createApp({
     setup() {
         // --- 1. Phase 1: 常數與 Firebase 初始化 ---
-        const appVersion = "v1.4.6";
+        const appVersion = "v1.4.7";
         
         let firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
         let firebaseConfig;
@@ -729,8 +750,8 @@ createApp({
         const currentYear = ref(new Date().getFullYear());
         const currentMonth = ref(new Date().getMonth());
         const selectedDay = ref(new Date().getDate());
-        const currentView = ref('ledger');
-        const settings = ref({ lang: 'zh', themeColor: '#4f46e5', fontSize: 'medium' });
+        const currentView = ref('settings'); // 預設先跳設定頁面方便測試
+        const settings = ref({ lang: 'zh', themeColor: '#4f46e5', fontSize: 'medium', darkMode: false });
         const user = ref(null);
         const isGlobalLoading = ref(true);
         const lastSyncTime = ref('');
@@ -811,6 +832,7 @@ createApp({
                 start_time: '開始時間', end_time: '結束時間', event_type: '活動類型', 
                 add_event: '新增活動', add_event_type: '新增類型', edit_event_type: '編輯類型', save_changes: '儲存變更',
                 choose_color: '選擇顏色',
+                theme_mode: '模式', light_mode: '淺色', dark_mode: '深色',
                 weekdays: ['日','一','二','三','四','五','六'],
                 daily_finance: '當日財務', daily_diary: '心情日誌', fetching: '行情獲取中',
                 no_data_hint: '今天尚未有紀錄', balance: '結餘', choose_year: '選擇年份', choose_month: '選擇月份', confirm: '確認', cancel: '取消',
@@ -834,6 +856,7 @@ createApp({
                 start_time: 'Start Time', end_time: 'End Time', event_type: 'Event Type', 
                 add_event: 'Add Event', add_event_type: 'Add Type', edit_event_type: 'Edit Type', save_changes: 'Save Changes',
                 choose_color: 'Color',
+                theme_mode: 'Mode', light_mode: 'Light', dark_mode: 'Dark',
                 weekdays: ['S','M','T','W','T','F','S'], daily_finance: 'Finance', daily_diary: 'Journal', fetching: 'Updating',
                 no_data_hint: 'No data', balance: 'Balance', choose_year: 'Year', choose_month: 'Month', confirm: 'Done', cancel: 'Cancel',
                 income: 'Income', expense: 'Expense', income_short: 'IN', expense_short: 'OUT',
@@ -850,6 +873,15 @@ createApp({
                 account: 'Account'
             }
         };
+
+        // 深色模式切換監聽 (綁定到 HTML 標籤)
+        watch(() => settings.value.darkMode, (isDark) => {
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }, { immediate: true });
 
         // --- 3. Phase 3: 核心功能函式 (Functions) ---
         function t(key) {
@@ -873,7 +905,7 @@ createApp({
         function getCategoryIcon(n) { return categories.value.find(c => c.name === n)?.icon || '❓'; }
         function getPhotoGridClass(c) { return c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48'); }
 
-        // 終極多重代理保護機制 (無視 502/408，靜默切換)
+        // 終極多重代理保護機制
         async function fetchWithProxy(targetUrl) {
             const encodedUrl = encodeURIComponent(targetUrl);
             const proxies = [
@@ -909,7 +941,6 @@ createApp({
                         }
                     }
                 } catch(e) {
-                    // 代理失敗時自動跳轉下一個，靜默處理
                 }
             }
             return null;
@@ -924,7 +955,6 @@ createApp({
         function changeYearTo(y) { currentYear.value = y; showYearPicker.value = false; showMonthPicker.value = true; }
         function changeMonthTo(m) { currentMonth.value = m; showMonthPicker.value = false; }
         
-        // 載入台灣股市官方清單，使用 LocalStorage 進行日級快取，大幅減輕伺服器與載入負擔
         async function loadStockList() {
             if (cachedStockList.value.length > 0 || isStockListLoading.value) return;
             
@@ -976,7 +1006,6 @@ createApp({
                     try { localStorage.setItem('lifetrack_stock_list_v5', JSON.stringify({ date: todayStr, list: list })); } catch(e) {}
                 }
             } catch (e) {
-                // 失敗時不干擾主程式
             }
             isStockListLoading.value = false;
         }
@@ -1022,7 +1051,9 @@ createApp({
                     if (data.entries) entries.value = JSON.parse(data.entries);
                     if (data.stockPortfolio) stockPortfolio.value = data.stockPortfolio;
                     if (data.categories) categories.value = data.categories;
-                    if (data.settings) settings.value = data.settings;
+                    if (data.settings) {
+                        settings.value = { ...settings.value, ...data.settings };
+                    }
                     if (data.eventTypes) eventTypes.value = data.eventTypes;
                 }
             } catch (e) { showError("讀取雲端失敗"); }
@@ -1081,7 +1112,7 @@ createApp({
             }
         }
 
-        // --- 核心優化：四大引擎保底報價機制 (確保 009816 必成功) ---
+        // --- 股市保底報價機制 ---
         async function updatePortfolioPrices() {
             if (!stockPortfolio.value.length) return;
             isAILoading.value = true;
@@ -1459,6 +1490,7 @@ createApp({
 
         // --- 5. Phase 5: 生命週期與監聽 ---
         onMounted(() => {
+            currentView.value = 'settings'; // 載入時先進入設定畫面
             updateIcons();
             loadStockList(); 
             if (auth) {
@@ -1473,9 +1505,10 @@ createApp({
             } else {
                 isGlobalLoading.value = false;
             }
+            setTimeout(() => { currentView.value = 'ledger'; }, 100);
         });
 
-        watch([currentView, showAddModal, settings, editTab, chartRange, chartMode, showCategoryDetailModal, showLoginModal], () => updateIcons());
+        watch([currentView, showAddModal, settings, editTab, chartRange, chartMode, showCategoryDetailModal, showLoginModal], () => updateIcons(), { deep: true });
 
         // --- 6. Phase 6: 回傳 ---
         return {
@@ -1499,10 +1532,10 @@ createApp({
                 const e = entries.value[k]; 
                 const hasDiary = !!(e?.diaryText || e?.photos?.length || e?.audio); 
                 const hasFinance = !!(e?.records?.length);
-                if (hasDiary && hasFinance) return 'text-green-600';
-                if (hasDiary) return 'text-yellow-500';
-                if (hasFinance) return 'text-red-500';
-                return 'text-slate-700';
+                if (hasDiary && hasFinance) return 'text-green-600 dark:text-green-400';
+                if (hasDiary) return 'text-yellow-500 dark:text-yellow-400';
+                if (hasFinance) return 'text-red-500 dark:text-red-400';
+                return 'text-slate-700 dark:text-slate-300';
             },
             formatAMPM,
             form, saveRecord, openAddModal, allDataTotals, formatNumber, chartCategories, chartTotalValue, pieGradient, dayNetBalance, dayTotalIncome, dayTotalExpense, editTab, newRecord, currentCategories, errorMsg, editingStock, addNewRecord, getCategoryIcon, iconPool, categoryForm, confirmCategoryAction, closeCategoryModal, startCategoryLongPress, endCategoryLongPress, startStockLongPress, endStockLongPress, confirmEditStock,
@@ -1511,7 +1544,7 @@ createApp({
             handleMultiPhotoUpload, addLocation, locationSearch, openGoogleMaps, openGoogleMapsSearch, startRecording, stopRecording, playAudio, isRecording, selectStockSuggestion, getPhotoGridClass, changeYear, changeMonth, currentDayData,
             selectedCategoryForDetail, categoryDetailRecords, jumpToCategoryDetails, jumpToEdit, deleteSpecificRecord,
             user, handleGoogleLogin, handleLogout, isGlobalLoading, changeYearTo, changeMonthTo,
-            changeDate, loadFormData, firebaseConfigMissing,
+            changeDate, loadFormData, firebaseConfigMissing, syncToCloud,
             showEventTypeModal, isEditingEventType, isAddingEvent, newEventType, newEvent, eventTypes, getEventTypeColor, 
             addEvent, openAddEventTypeModal, openEditEventTypeModal, saveEventType, deleteEventType,
             toggleAddEventForm, startEventLongPress, endEventLongPress, cancelEditEvent, editingEventIdx
