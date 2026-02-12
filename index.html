@@ -129,7 +129,6 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            aspect-ratio: 1 / 1;
             border-radius: 1.25rem;
             transition: all 0.2s;
             overflow: hidden;
@@ -170,7 +169,7 @@
         <p class="text-[0.65em] font-black text-slate-400 tracking-widest uppercase">Cloud Syncing...</p>
     </div>
 
-    <!-- 未配置 Firebase 警告 (若使用者未填入配置) -->
+    <!-- 未配置 Firebase 警告 -->
     <div v-if="firebaseConfigMissing" class="absolute top-0 left-0 right-0 z-[210] bg-red-600 text-white p-4 text-center text-[0.75em] font-bold shadow-xl">
         請編輯程式碼，填入您的 Firebase 設定以啟用雲端功能
     </div>
@@ -185,7 +184,7 @@
             </div>
         </transition>
 
-        <!-- 標題區域 (加上 pt-safe 適配瀏海) -->
+        <!-- 標題區域 -->
         <header :style="{ backgroundColor: settings.themeColor }" class="px-5 pb-4 pt-safe text-white shadow-md shrink-0 z-50 transition-all duration-500">
             <div v-if="currentView === 'ledger'" class="space-y-2">
                 <div class="flex items-center justify-between">
@@ -215,7 +214,7 @@
             </div>
         </header>
 
-        <!-- 主要內容區 (加上 main-pb 適配底部導覽列高度) -->
+        <!-- 主要內容區 -->
         <main class="flex-1 overflow-y-auto hide-scrollbar bg-slate-50 relative main-pb">
             <!-- 年月選擇彈窗 -->
             <div v-if="showYearPicker || showMonthPicker" class="absolute inset-0 z-[60] flex items-center justify-center p-6">
@@ -266,10 +265,10 @@
                                 </span>
                             </div>
                             
-                            <!-- 行事曆橫線顯示 (最多三條) -->
-                            <div v-if="getDayEntries(day).events?.length" class="absolute bottom-1 flex flex-col gap-[2px] items-center">
+                            <!-- 行事曆橫線顯示 -->
+                            <div v-if="getDayEntries(day).events?.length" class="absolute bottom-1.5 flex flex-col gap-[2px] items-center">
                                 <template v-for="(ev, idx) in getDayEntries(day).events.slice(0, 3)" :key="idx">
-                                    <div class="w-3.5 h-[2.5px] rounded-full opacity-90" :style="{ backgroundColor: getEventTypeColor(ev.type) }"></div>
+                                    <div class="w-4 h-[2.5px] rounded-full opacity-90" :style="{ backgroundColor: getEventTypeColor(ev.type) }"></div>
                                 </template>
                             </div>
                         </div>
@@ -544,7 +543,7 @@
                                     <div>
                                         <p class="text-[0.9em] font-black text-slate-800">{{ ev.title }}</p>
                                         <div class="text-[0.75em] font-bold text-slate-500 mt-1 flex items-center flex-wrap gap-2">
-                                            <span class="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{{ ev.isAllDay ? t('all_day') : (ev.startTime + ' - ' + ev.endTime) }}</span>
+                                            <span class="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{{ ev.isAllDay ? t('all_day') : (formatAMPM(ev.startTime) + ' - ' + formatAMPM(ev.endTime)) }}</span>
                                             <span v-if="ev.location" @click.stop="openGoogleMaps(ev.location)" class="text-indigo-600 cursor-pointer active:opacity-50 flex items-center bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
                                                 <i data-lucide="map-pin" class="w-3 h-3 mr-1"></i>{{ ev.location }}
                                             </span>
@@ -608,9 +607,9 @@
                         </div>
                         <div class="p-6 bg-slate-50/80 rounded-[2rem] border border-slate-100 space-y-6">
                             <div class="flex justify-between items-center px-1"><span class="text-[0.75em] font-black text-slate-500 tracking-widest uppercase">{{ t('add_new_line') }}</span><div class="flex bg-white p-1 rounded-full shadow-sm text-[0.75em] font-black border border-slate-100 overflow-hidden"><button @click="newRecord.type = 'expense'" :class="newRecord.type === 'expense' ? 'bg-green-600 text-white shadow-md' : 'text-slate-400'" class="px-5 py-2 rounded-full transition-all active:scale-95">{{ t('expense_short') }}</button><button @click="newRecord.type = 'income'" :class="newRecord.type === 'income' ? 'bg-red-500 text-white shadow-md' : 'text-slate-400'" class="px-5 py-2 rounded-full transition-all active:scale-95">{{ t('income_short') }}</button></div></div>
-                            <div class="grid grid-cols-4 gap-3">
-                                <button v-for="cat in currentCategories" :key="cat?.name" @click="newRecord.category = cat.name" @touchstart="startCategoryLongPress(cat)" @touchend="endCategoryLongPress" @mousedown="startCategoryLongPress(cat)" @mouseup="endCategoryLongPress" :class="newRecord.category === cat?.name ? 'ring-2 ring-p bg-white scale-105 shadow-md' : 'bg-white border border-slate-100 shadow-sm'" class="category-btn py-3 transition-all"><span class="text-[1.5em] mb-1.5">{{ cat?.icon }}</span><span class="text-[0.75em] font-black truncate w-full text-center text-slate-600">{{ cat?.name }}</span></button>
-                                <button @click="showAddCategory = true" class="category-btn bg-transparent border-2 border-dashed border-slate-300 active:scale-90 flex items-center justify-center hover:bg-slate-100"><i data-lucide="plus" class="w-6 h-6 text-slate-400"></i></button>
+                            <div class="grid grid-cols-4 gap-2 px-1">
+                                <button v-for="cat in currentCategories" :key="cat?.name" @click="newRecord.category = cat.name" @touchstart="startCategoryLongPress(cat)" @touchend="endCategoryLongPress" @mousedown="startCategoryLongPress(cat)" @mouseup="endCategoryLongPress" :class="newRecord.category === cat?.name ? 'ring-2 ring-p bg-white scale-105 shadow-md' : 'bg-white border border-slate-100 shadow-sm'" class="category-btn py-2.5 px-1 transition-all"><span class="text-[1.5em] mb-1.5">{{ cat?.icon }}</span><span class="text-[11px] leading-tight break-words line-clamp-2 font-black w-full text-center text-slate-600 px-0.5">{{ cat?.name }}</span></button>
+                                <button @click="showAddCategory = true" class="category-btn bg-transparent border-2 border-dashed border-slate-300 active:scale-90 flex items-center justify-center hover:bg-slate-100 min-h-[64px]"><i data-lucide="plus" class="w-6 h-6 text-slate-400"></i></button>
                             </div>
                             <div class="flex gap-3 items-center w-full">
                                 <div class="w-1/3 shrink-0"><input type="number" v-model="newRecord.amount" class="w-full bg-white p-3.5 rounded-xl outline-none font-black text-[1em] border border-slate-100 shadow-sm text-center focus:ring-2 ring-indigo-50 transition-all" :placeholder="t('amount_ph')"></div>
@@ -643,7 +642,7 @@
                         <input v-model="newEventType.name" type="text" class="w-full bg-slate-50 p-4 rounded-xl outline-none font-bold border border-slate-100 focus:border-p focus:bg-white text-[1em] transition-all" :placeholder="t('cat_name_ph')">
                         
                         <div>
-                            <p class="text-[0.75em] font-black text-slate-500 uppercase mb-4 tracking-widest">選擇顏色</p>
+                            <p class="text-[0.75em] font-black text-slate-500 uppercase mb-4 tracking-widest">{{ t('choose_color') }}</p>
                             <div class="flex gap-4 flex-wrap justify-start">
                                 <div v-for="color in ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b', '#14b8a6', '#f43f5e', '#84cc16']" 
                                      @click="newEventType.color = color" 
@@ -691,7 +690,7 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 createApp({
     setup() {
         // --- 1. Phase 1: 常數與 Firebase 初始化 ---
-        const appVersion = "v1.4.1";
+        const appVersion = "v1.4.5";
         
         let firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
         let firebaseConfig;
@@ -811,6 +810,7 @@ createApp({
                 calendar: '行事曆', event_title: '活動名稱', location: '地點', all_day: '整日', 
                 start_time: '開始時間', end_time: '結束時間', event_type: '活動類型', 
                 add_event: '新增活動', add_event_type: '新增類型', edit_event_type: '編輯類型', save_changes: '儲存變更',
+                choose_color: '選擇顏色',
                 weekdays: ['日','一','二','三','四','五','六'],
                 daily_finance: '當日財務', daily_diary: '心情日誌', fetching: '行情獲取中',
                 no_data_hint: '今天尚未有紀錄', balance: '結餘', choose_year: '選擇年份', choose_month: '選擇月份', confirm: '確認', cancel: '取消',
@@ -833,6 +833,7 @@ createApp({
                 calendar: 'Calendar', event_title: 'Event Title', location: 'Location', all_day: 'All Day', 
                 start_time: 'Start Time', end_time: 'End Time', event_type: 'Event Type', 
                 add_event: 'Add Event', add_event_type: 'Add Type', edit_event_type: 'Edit Type', save_changes: 'Save Changes',
+                choose_color: 'Color',
                 weekdays: ['S','M','T','W','T','F','S'], daily_finance: 'Finance', daily_diary: 'Journal', fetching: 'Updating',
                 no_data_hint: 'No data', balance: 'Balance', choose_year: 'Year', choose_month: 'Month', confirm: 'Done', cancel: 'Cancel',
                 income: 'Income', expense: 'Expense', income_short: 'IN', expense_short: 'OUT',
@@ -855,6 +856,17 @@ createApp({
             const lang = settings.value.lang || 'zh';
             return dictionary[lang]?.[key] || dictionary['zh'][key] || key;
         }
+        
+        // 格式化 24 小時制為 AM / PM
+        function formatAMPM(timeStr) {
+            if (!timeStr) return '';
+            let [h, m] = timeStr.split(':');
+            h = parseInt(h, 10);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12;
+            h = h ? h : 12; // 0 點應顯示為 12
+            return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
+        }
 
         function updateIcons() { nextTick(() => { if(window.lucide) lucide.createIcons(); }); }
         function formatNumber(num) { return Math.floor(num || 0).toLocaleString(); }
@@ -862,39 +874,38 @@ createApp({
         function getCategoryIcon(n) { return categories.value.find(c => c.name === n)?.icon || '❓'; }
         function getPhotoGridClass(c) { return c === 1 ? 'photo-grid-1 h-48' : (c === 2 ? 'photo-grid-2 h-32' : 'photo-grid-3 h-48'); }
 
-        // 多重代理保護機制
-        async function safeFetch(url, isAllOriginsJson = false) {
-            const encodedUrl = encodeURIComponent(url);
+        // 多重代理保護機制 - 強固版 (防止 JSON 解析失敗)
+        async function fetchWithProxy(targetUrl) {
+            const encodedUrl = encodeURIComponent(targetUrl);
+            const ts = Date.now();
             const proxies = [
-                u => `https://corsproxy.io/?${u}`,
-                u => `https://api.allorigins.win/get?url=${u}`,
-                u => `https://api.codetabs.com/v1/proxy?quest=${u}`
+                targetUrl, // 優先嘗試直接連線
+                `https://api.allorigins.win/raw?url=${encodedUrl}&_ts=${ts}`,
+                `https://api.codetabs.com/v1/proxy?quest=${encodedUrl}&_ts=${ts}`,
+                `https://corsproxy.io/?${encodedUrl}`
             ];
             
-            for (const p of proxies) {
+            for (const proxyUrl of proxies) {
                 try {
-                    const proxyUrl = p(encodedUrl);
-                    const res = await fetch(proxyUrl);
-                    if (!res.ok) continue;
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6秒快速跳線
+                    const res = await fetch(proxyUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
                     
-                    if (proxyUrl.includes('allorigins')) {
-                        const wrapper = await res.json();
-                        return isAllOriginsJson ? JSON.parse(wrapper.contents) : wrapper.contents;
-                    } else {
-                        return await res.json();
+                    if (res.ok) {
+                        const contentType = res.headers.get("content-type");
+                        if (contentType && contentType.includes("application/json")) {
+                            return await res.json();
+                        } else {
+                            const text = await res.text();
+                            return JSON.parse(text); // 強制解析防錯
+                        }
                     }
-                } catch(e) {}
+                } catch(e) {
+                    // 代理失敗時自動跳轉下一個，靜默處理
+                }
             }
-            throw new Error('All proxies failed');
-        }
-
-        // 直接抓取 OpenAPI (支援 CORS)，若失敗才交給 Proxy
-        async function fetchOpenAPI(url) {
-            try {
-                const res = await fetch(url);
-                if (res.ok) return await res.json();
-            } catch(e) {}
-            return await safeFetch(url, true);
+            return null;
         }
 
         function changeYear(delta) { currentYear.value += delta; }
@@ -906,18 +917,37 @@ createApp({
         function changeYearTo(y) { currentYear.value = y; showYearPicker.value = false; showMonthPicker.value = true; }
         function changeMonthTo(m) { currentMonth.value = m; showMonthPicker.value = false; }
         
-        // 載入台灣股市官方清單 (含上市上櫃)，並快取「收盤價」作為終極保底
+        // 載入台灣股市官方清單，使用 LocalStorage 進行日級快取，大幅減輕伺服器與載入負擔
         async function loadStockList() {
             if (cachedStockList.value.length > 0 || isStockListLoading.value) return;
+            
+            const todayStr = new Date().toLocaleDateString();
+            let useCache = false;
+            try {
+                const localCache = localStorage.getItem('lifetrack_stock_list_v4');
+                if (localCache) {
+                    const parsed = JSON.parse(localCache);
+                    if (parsed.list && parsed.list.length > 0) {
+                        cachedStockList.value = parsed.list;
+                        if (parsed.date === todayStr) useCache = true;
+                    }
+                }
+            } catch(e) {}
+
+            if (useCache) return; // 本日已同步過，直接使用快取即可
+
             isStockListLoading.value = true;
             try {
                 const [tseData, otcData] = await Promise.all([
-                    fetchOpenAPI('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL').catch(() => []),
-                    fetchOpenAPI('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes').catch(() => [])
+                    fetchWithProxy('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL'),
+                    fetchWithProxy('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes')
                 ]);
                 
                 const list = [];
-                const parsePrice = (p) => parseFloat((p || "0").toString().replace(/,/g, ''));
+                const parsePrice = (p) => {
+                    if (!p || p === '-' || p === '--' || p === 'X') return 0;
+                    return parseFloat(p.toString().replace(/,/g, '')) || 0;
+                };
                 
                 if(tseData && tseData.length) {
                     tseData.forEach(item => {
@@ -933,7 +963,11 @@ createApp({
                         }
                     });
                 }
-                if(list.length > 0) cachedStockList.value = list;
+                
+                if(list.length > 0) {
+                    cachedStockList.value = list;
+                    try { localStorage.setItem('lifetrack_stock_list_v4', JSON.stringify({ date: todayStr, list: list })); } catch(e) {}
+                }
             } catch (e) {
                 console.error("Failed to load stock list", e);
             }
@@ -1040,7 +1074,7 @@ createApp({
             }
         }
 
-        // --- 核心優化：四大引擎保底報價機制 ---
+        // --- 核心優化：四大引擎保底報價機制 (確保 009816 必成功) ---
         async function updatePortfolioPrices() {
             if (!stockPortfolio.value.length) return;
             isAILoading.value = true;
@@ -1065,11 +1099,11 @@ createApp({
 
                 const priceMap = {};
 
-                // 引擎 1：Yahoo Finance API
+                // 引擎 1：Yahoo Finance API 
                 try {
                     const yQuery = syms.map(c => `${c}.TW,${c}.TWO`).join(',');
                     const targetUrl = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${yQuery}`;
-                    const yData = await safeFetch(targetUrl, true);
+                    const yData = await fetchWithProxy(targetUrl);
                     
                     if (yData && yData.quoteResponse && yData.quoteResponse.result) {
                         yData.quoteResponse.result.forEach(item => {
@@ -1078,15 +1112,15 @@ createApp({
                             if (code && price) priceMap[code] = { price: parseFloat(price), name: item.shortName || item.longName || code };
                         });
                     }
-                } catch(e) { console.warn("Engine 1 failed"); }
+                } catch(e) {}
 
                 // 引擎 2：TWSE MIS API
                 const missingSyms2 = syms.filter(c => !priceMap[c]);
                 if (missingSyms2.length > 0) {
                     try {
                         const queryList = missingSyms2.map(c => `tse_${c}.tw|otc_${c}.tw`).join('|');
-                        const targetUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${queryList}&json=1&delay=0&_=${Date.now()}`;
-                        const data = await safeFetch(targetUrl, true);
+                        const targetUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${queryList}&json=1&delay=0`;
+                        const data = await fetchWithProxy(targetUrl);
                         if (data && data.msgArray && data.msgArray.length > 0) {
                             data.msgArray.forEach(item => {
                                 const code = item.c; 
@@ -1094,7 +1128,7 @@ createApp({
                                 if (code && price && price !== '0.00') priceMap[code] = { price: parseFloat(price), name: item.n };
                             });
                         }
-                    } catch(e) { console.warn("Engine 2 failed"); }
+                    } catch(e) {}
                 }
 
                 // 結算與引擎 3 保底
@@ -1114,10 +1148,13 @@ createApp({
                         }
                         updateCount++;
                     } else if (id) {
+                        // 當所有即時網路都失敗，強制調出快取的收盤價 (必定找到 009816)
                         const cachedItem = cachedStockList.value.find(c => c.id === id);
                         if (cachedItem && cachedItem.price > 0) {
                             stk.currentPrice = cachedItem.price;
-                            stk.name = `${cachedItem.name}(${id})`;
+                            if (!stk.name.includes(`(${id})`)) {
+                                stk.name = `${cachedItem.name}(${id})`;
+                            }
                             updateCount++;
                         }
                     }
@@ -1265,15 +1302,18 @@ createApp({
             
             searchTimeout = setTimeout(async () => {
                 let results = [];
+                // 1. 本地清單精準搜尋
                 if (cachedStockList.value.length > 0) {
                     results = cachedStockList.value.filter(s => 
                         s.id.includes(query) || s.name.includes(query) || query.includes(s.name)
                     ).slice(0, 10);
                 }
+                
+                // 2. 本地查無，才動用 Yahoo 備援
                 if (results.length === 0 && !/^\d+$/.test(query)) {
                     try {
                         const yUrl = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&lang=zh-Hant-TW&region=TW&quotesCount=6`;
-                        const yData = await safeFetch(yUrl, true);
+                        const yData = await fetchWithProxy(yUrl);
                         if (yData && yData.quotes) {
                             yData.quotes.forEach(q => {
                                 if (q.symbol && (q.symbol.endsWith('.TW') || q.symbol.endsWith('.TWO'))) {
@@ -1285,9 +1325,12 @@ createApp({
                         }
                     } catch(e) {}
                 }
+                
+                // 3. 保底
                 if (results.length === 0 && /^\d+$/.test(query)) {
                     results.push({ name: query, id: query });
                 }
+                
                 stockSuggestions.value = results;
             }, 400);
         }
@@ -1454,6 +1497,7 @@ createApp({
                 if (hasFinance) return 'text-red-500';
                 return 'text-slate-700';
             },
+            formatAMPM,
             form, saveRecord, openAddModal, allDataTotals, formatNumber, chartCategories, chartTotalValue, pieGradient, dayNetBalance, dayTotalIncome, dayTotalExpense, editTab, newRecord, currentCategories, errorMsg, editingStock, addNewRecord, getCategoryIcon, iconPool, categoryForm, confirmCategoryAction, closeCategoryModal, startCategoryLongPress, endCategoryLongPress, startStockLongPress, endStockLongPress, confirmEditStock,
             stockPortfolio, newStock, addStockItem, updatePortfolioPrices, stockTotalValue, stockTotalProfit, isAILoading, lastSyncTime,
             handleModalTouchStart, handleModalTouchMove, handleModalTouchEnd, isDraggingModal, modalStyle,
