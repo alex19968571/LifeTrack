@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover">
-    <title>LifeTrack - 專業行事日誌與股市記帳</title>
+    <title>LifeTrack - 專業行程日誌與股市記帳</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -191,7 +191,7 @@
                 <div class="bg-slate-900 dark:bg-black border border-transparent dark:border-[#2c2c2e] text-white p-7 rounded-[2rem] shadow-xl relative overflow-hidden transition-colors">
                     <div class="absolute -right-5 -top-5 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl text-white"></div>
                     <div class="relative z-10 space-y-5 text-center">
-                        <div class="flex justify-between items-center border-b border-white/10 pb-5 text-white text-center">
+                        <div class="flex justify-between items-center border-b border-white/10 pb-5">
                             <div class="flex-1 text-white text-center"><p class="text-[0.65em] opacity-60 uppercase font-black tracking-widest mb-1">{{ t('total_value') }}</p><p class="text-[1.5em] font-black font-mono tracking-tighter text-white">${{ formatNumber(stockTotalValue) }}</p></div>
                             <div class="w-px h-10 bg-white/10 mx-2"></div>
                             <div class="flex-1 text-white text-center"><p class="text-[0.65em] opacity-60 uppercase font-black tracking-widest mb-1">{{ t('profit') }}</p><p :class="stockTotalProfit >= 0 ? 'text-red-400' : 'text-green-400'" class="text-[1.5em] font-black font-mono tracking-tighter">{{ stockTotalProfit >= 0 ? '+' : '' }}{{ formatNumber(stockTotalProfit) }}</p></div>
@@ -201,15 +201,15 @@
                 </div>
                 
                 <div class="space-y-4 pb-6">
-                    <div v-for="(stk, idx) in stockPortfolio" :key="idx" class="bg-white dark:bg-[#1c1c1e] p-4 rounded-2xl border border-slate-100 dark:border-[#2c2c2e] card-shadow flex justify-between items-center transition-all cursor-pointer active:scale-[0.98]" @touchstart="startStockLongPress(stk, idx)" @touchend="endStockLongPress" @mousedown="startStockLongPress(stk, idx)" @mouseup="endStockLongPress">
+                    <div v-for="(stk, idx) in stockPortfolio" :key="idx" class="bg-white dark:bg-[#1c1c1e] p-4 rounded-3xl border border-slate-100 dark:border-[#2c2c2e] card-shadow flex justify-between items-center transition-all cursor-pointer active:scale-[0.98]" @touchstart="startStockLongPress(stk, idx)" @touchend="endStockLongPress" @mousedown="startStockLongPress(stk, idx)" @mouseup="endStockLongPress">
                         <div class="flex items-center min-w-0 flex-1">
-                            <div class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-[#2c2c2e] flex items-center justify-center mr-3 text-[1.1em] font-bold text-p shadow-inner shrink-0">{{ stk?.name?.[0] || '?' }}</div>
-                            <div class="min-w-0 flex-1"><p class="text-[0.9em] font-black truncate text-slate-700 dark:text-slate-100">{{ stk?.name || '---' }}</p><p class="text-[0.65em] text-slate-400 font-bold uppercase">{{ stk?.qty }} {{ t('shares') }} · {{ t('cost') }} {{ formatNumber(stk?.buyPrice) }}</p></div>
+                            <div class="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-[#2c2c2e] flex items-center justify-center mr-4 text-[1.25em] font-bold text-p shadow-inner shrink-0">{{ stk?.name?.[0] || '?' }}</div>
+                            <div class="min-w-0 flex-1"><p class="text-[0.9em] font-black text-slate-800 dark:text-slate-100 truncate pr-2">{{ stk?.name || '---' }}</p><p class="text-[0.65em] text-slate-400 font-bold uppercase mt-1">{{ stk?.qty }} {{ t('shares') }} · {{ t('cost') }} {{ formatNumber(stk?.buyPrice) }}</p></div>
                         </div>
-                        <div class="flex items-center gap-3 text-right">
+                        <div class="flex items-center gap-3 text-right shrink-0">
                             <div>
-                                <p :class="((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? 'text-red-600' : 'text-green-600'" class="text-[0.85em] font-black font-mono">{{ ((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? '+' : '' }}{{ formatNumber(((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) * (stk?.qty || 0)) }}</p>
-                                <p class="text-[0.6em] text-slate-400 font-bold uppercase tracking-tighter">{{ t('current_price') }}: {{ formatNumber(stk?.currentPrice || stk?.buyPrice) }}</p>
+                                <p :class="((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'" class="text-[0.85em] font-black font-mono">{{ ((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) >= 0 ? '+' : '' }}{{ formatNumber(((stk?.currentPrice || 0) - (stk?.buyPrice || 0)) * (stk?.qty || 0)) }}</p>
+                                <p class="text-[0.6em] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">{{ t('current_price') }}: {{ formatNumber(stk?.currentPrice || stk?.buyPrice) }}</p>
                             </div>
                             <button @click.stop="stockPortfolio.splice(idx, 1); debouncedSync()" class="text-slate-300 hover:text-red-500 p-2 transition-colors"><i data-lucide="trash-2" class="w-4 h-4 text-slate-400"></i></button>
                         </div>
@@ -293,17 +293,17 @@
                     <button v-else @click="handleGoogleLogin" :style="{ backgroundColor: settings.themeColor }" class="w-full py-4 text-white rounded-2xl font-black mt-4 shadow-md active:scale-95 transition-all text-white uppercase transition-colors">{{ t('link_google') }}</button>
                 </div>
                 <div class="bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 card-shadow space-y-7 border border-slate-100 dark:border-[#2c2c2e] transition-colors">
-                    <div class="flex justify-between items-center text-slate-700 dark:text-white uppercase font-black transition-colors"><span class="text-[0.9em]">{{ t('dark_mode') }}</span><button @click="settings.darkMode = !settings.darkMode" :class="settings.darkMode ? 'bg-p' : 'bg-slate-200'" class="w-12 h-6 rounded-full relative transition-colors"><div :class="settings.darkMode ? 'translate-x-6' : 'translate-x-1'" class="absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform"></div></button></div>
+                    <div class="flex justify-between items-center text-slate-700 dark:text-white uppercase font-black transition-colors"><span class="text-[0.9em]">{{ t('dark_mode') }}</span><button @click="settings.darkMode = !settings.darkMode; debouncedSync()" :class="settings.darkMode ? 'bg-p' : 'bg-slate-200'" class="w-12 h-6 rounded-full relative transition-colors"><div :class="settings.darkMode ? 'translate-x-6' : 'translate-x-1'" class="absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform"></div></button></div>
                     
-                    <div class="flex justify-between items-center text-slate-700 dark:text-white uppercase font-black transition-colors"><span class="text-[0.9em]">{{ t('theme_color') }}</span><div class="flex gap-2"><div v-for="c in ['#4f46e5', '#10b981', '#f43f5e', '#1e293b', '#f59e0b']" :key="c" @click="settings.themeColor = c; debouncedSync()" :style="{ backgroundColor: c }" class="w-7 h-7 rounded-full cursor-pointer border-2 transition-all transition-colors transition-colors" :class="settings.themeColor === c ? 'border-slate-800 scale-110 shadow-md' : 'border-transparent'"></div></div></div>
+                    <div class="flex justify-between items-center text-slate-700 dark:text-white uppercase font-black transition-colors"><span class="text-[0.9em]">{{ t('theme_color') }}</span><div class="flex gap-2"><div v-for="c in ['#4f46e5', '#10b981', '#f43f5e', '#1e293b', '#f59e0b']" :key="c" @click="settings.themeColor = c; debouncedSync()" :style="{ backgroundColor: c }" class="w-7 h-7 rounded-full cursor-pointer border-2 transition-all transition-colors" :class="settings.themeColor === c ? 'border-slate-800 scale-110 shadow-md' : 'border-transparent'"></div></div></div>
                     
-                    <div class="flex justify-between items-center text-slate-700 dark:text-white uppercase font-black transition-colors"><span class="text-[0.9em]">{{ t('language') }}</span><select v-model="settings.lang" class="bg-slate-50 dark:bg-[#2c2c2e] p-2 rounded-xl outline-none font-bold text-[0.8em] text-slate-700 dark:text-slate-100 transition-colors"><option value="zh">繁體中文</option><option value="en">English</option></select></div>
+                    <div class="flex justify-between items-center text-slate-700 dark:text-white uppercase font-black transition-colors"><span class="text-[0.9em]">{{ t('language') }}</span><select v-model="settings.lang" @change="debouncedSync" class="bg-slate-50 dark:bg-[#2c2c2e] p-2 rounded-xl outline-none font-bold text-[0.8em] text-slate-700 dark:text-slate-100 transition-colors"><option value="zh">繁體中文</option><option value="en">English</option></select></div>
                     <div class="flex justify-between items-center text-slate-700 dark:text-white uppercase font-black transition-colors"><span class="text-[0.9em]">{{ t('font_size') }}</span><div class="flex bg-slate-50 dark:bg-[#2c2c2e] p-1 rounded-xl transition-colors">
-                        <button v-for="sz in ['small', 'medium', 'large']" :key="sz" @click="settings.fontSize = sz" :class="settings.fontSize === sz ? 'bg-white dark:bg-[#1c1c1e] shadow-sm text-p' : 'text-slate-400'" class="px-3 py-1.5 text-[0.7em] font-black rounded-lg transition-all">{{ t('font_' + sz) }}</button>
+                        <button v-for="sz in ['small', 'medium', 'large']" :key="sz" @click="settings.fontSize = sz; debouncedSync()" :class="settings.fontSize === sz ? 'bg-white dark:bg-[#1c1c1e] shadow-sm text-p' : 'text-slate-400'" class="px-3 py-1.5 text-[0.7em] font-black rounded-lg transition-all">{{ t('font_' + sz) }}</button>
                     </div></div>
                 </div>
                 <!-- 顯示動態版本號 -->
-                <div class="version-watermark transition-colors">{{ appVersion }}</div>
+                <div class="version-watermark transition-colors">LifeTrack PRO {{ appVersion }}</div>
             </section>
         </main>
 
@@ -425,7 +425,7 @@
 
                         <!-- 日誌分頁 -->
                         <div v-if="editTab === 'diary'" class="space-y-6 animate-in slide-in-from-bottom-2 pb-10">
-                            <div class="w-full transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><div v-if="!form.audio" class="p-5 bg-slate-50 dark:bg-[#1c1c1e] rounded-3xl flex flex-col items-center justify-center relative border-2 border-dashed border-slate-200 transition-all transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="music" class="w-8 h-8 text-slate-400 mb-2"></i><span class="text-[0.8em] font-black text-slate-500 uppercase transition-colors transition-colors">{{ t('upload_audio') }}</span><input type="file" accept="audio/*" @change="handleAudioUpload" class="absolute inset-0 opacity-0 cursor-pointer transition-colors transition-colors"></div><div v-else class="p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-3xl flex items-center justify-between border border-indigo-100 shadow-sm transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><div class="flex items-center gap-3 transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="music-2" class="w-5 h-5 text-white"></i></div><span class="text-[0.8em] font-black text-slate-700 dark:text-white uppercase transition-colors transition-colors transition-colors">{{ t('audio_memo') }}</span></div><div class="flex gap-2 transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><button v-if="!isAudioPlaying" @click="playAudio" class="w-10 h-10 rounded-full bg-white text-indigo-600 flex justify-center items-center shadow-sm active:scale-90 transition-all transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="play" class="w-4 h-4 text-p"></i></button><button v-else @click="stopAudio" class="w-10 h-10 rounded-full bg-white text-red-500 flex justify-center items-center shadow-sm active:scale-90 transition-all transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="square" class="w-4 h-4 text-red-500"></i></button><button @click="form.audio = null; stopAudio()" class="w-10 h-10 rounded-full bg-white text-slate-400 flex justify-center items-center shadow-sm active:scale-90 transition-all transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="trash-2" class="w-4 h-4 text-slate-400"></i></button></div></div></div>
+                            <div class="w-full transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><div v-if="!form.audio" class="p-5 bg-slate-50 dark:bg-[#1c1c1e] rounded-3xl flex flex-col items-center justify-center relative border-2 border-dashed border-slate-200 transition-all transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="music" class="w-8 h-8 text-slate-400 mb-2"></i><span class="text-[0.8em] font-black text-slate-500 uppercase transition-colors transition-colors">{{ t('upload_audio') }}</span><input type="file" accept="audio/*" @change="handleAudioUpload" class="absolute inset-0 opacity-0 cursor-pointer transition-colors transition-colors"></div><div v-else class="p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-3xl flex items-center justify-between border border-indigo-100 shadow-sm transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><div class="flex items-center gap-3 transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="music-2" class="w-5 h-5 text-white"></i></div><span class="text-[0.8em] font-black text-slate-700 dark:text-white uppercase transition-colors transition-colors transition-colors">{{ t('audio_memo') }}</span></div><div class="flex gap-2 transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><button v-if="!isAudioPlaying" @click="playAudio" class="w-10 h-10 rounded-full bg-white text-indigo-600 flex justify-center items-center shadow-sm active:scale-90 transition-all transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="play" class="w-4 h-4 text-p"></i></button><button v-else @click="stopAudio" class="w-10 h-10 rounded-full bg-white text-red-500 flex justify-center items-center shadow-sm active:scale-90 transition-all transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="square" class="w-4 h-4 text-red-500"></i></button><button @click="form.audio = null; stopAudio()" class="w-10 h-10 rounded-full bg-white text-slate-400 flex justify-center items-center shadow-sm active:scale-90 transition-all transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="trash-2" class="w-4 h-4 text-slate-400"></i></button></div></div></div>
                             <div class="space-y-3 transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest px-1 uppercase transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors">{{ t('daily_feeling') }}</label><div class="flex gap-4 overflow-x-auto hide-scrollbar py-4 px-3 transition-colors transition-colors transition-colors transition-colors transition-colors"><button v-for="f in ['😊','🥰','🥳','🤩','😴','💪','跑','🍔','🍷','🎮','📚','🏢','💼','☕','🏠','🐈','🐶','🌧️','☀️','✈️','😡','😔','🤯']" :key="f" @click="form.feeling = f" :class="form.feeling === f ? 'scale-125 ring-4 ring-p bg-white dark:bg-[#2c2c2e] shadow-xl z-10' : 'opacity-40 bg-slate-50 dark:bg-[#2c2c2e]'" class="text-3xl w-14 h-14 shrink-0 flex items-center justify-center rounded-2xl transition-all duration-300 transition-colors">{{ f }}</button></div></div>
                             <textarea v-model="form.diaryText" class="w-full h-40 p-5 bg-slate-50 dark:bg-[#2c2c2e] rounded-3xl outline-none font-bold border border-slate-100 dark:border-transparent shadow-inner focus:border-indigo-200 transition-all text-slate-700 dark:text-slate-100 transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors" :placeholder="t('share_hint')"></textarea>
                             
@@ -446,7 +446,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="space-y-3 transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest px-1 uppercase transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors">{{ t('photos') }} ({{ form.photos?.length || 0 }})</label><div class="grid grid-cols-2 gap-3 pb-6 transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><div class="p-4 bg-slate-50 dark:bg-[#2c2c2e] rounded-2xl flex flex-col items-center justify-center relative border border-slate-100 active:scale-95 transition-all border-dashed transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="image" class="w-6 h-6 text-slate-400 mb-2"></i><span class="text-[0.7em] font-black text-slate-500 uppercase transition-colors transition-colors transition-colors transition-colors">{{ t('select_photos') }}</span><input type="file" multiple accept="image/*" @change="handleMultiPhotoUpload" class="absolute inset-0 opacity-0 cursor-pointer transition-colors transition-colors transition-colors transition-colors"></div><div v-if="form.photos?.length" class="flex gap-2 overflow-x-auto hide-scrollbar items-center transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><div v-for="(img, idx) in form.photos" :key="idx" class="relative shrink-0 transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><img :src="img" @click="previewImageUrl = img" class="w-16 h-16 rounded-xl object-cover border border-white shadow-sm transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><button @click="form.photos.splice(idx, 1); updateIconsFn()" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-md transition-all transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="x" class="w-3 h-3 text-white"></i></button></div></div></div></div>
+                            <div class="space-y-3 transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><label class="text-[0.7em] font-black text-slate-400 uppercase tracking-widest px-1 uppercase transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors">{{ t('photos') }} ({{ form.photos?.length || 0 }})</label><div class="grid grid-cols-2 gap-3 pb-6 transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><div class="p-4 bg-slate-50 dark:bg-[#2c2c2e] rounded-2xl flex flex-col items-center justify-center relative border border-slate-100 active:scale-95 transition-all border-dashed transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="image" class="w-6 h-6 text-slate-400 mb-2"></i><span class="text-[0.7em] font-black text-slate-500 uppercase transition-colors transition-colors transition-colors transition-colors">{{ t('select_photos') }}</span><input type="file" multiple accept="image/*" @change="handleMultiPhotoUpload" class="absolute inset-0 opacity-0 cursor-pointer transition-colors transition-colors transition-colors transition-colors"></div><div v-if="form.photos?.length" class="flex gap-2 overflow-x-auto hide-scrollbar items-center transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><div v-for="(img, idx) in form.photos" :key="idx" class="relative shrink-0 transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><img :src="img" @click="previewImageUrl = img" class="w-16 h-16 rounded-xl object-cover border border-white shadow-sm transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><button @click="form.photos.splice(idx, 1); updateIconsFn()" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-md transition-all transition-colors transition-colors transition-colors transition-colors transition-colors transition-colors"><i data-lucide="x" class="w-3 h-3 text-white"></i></button></div></div></div></div>
                         </div>
 
                         <!-- 收支分頁 -->
@@ -540,7 +540,7 @@ const translations = {
 createApp({
     setup() {
         // --- 模塊 1：基礎設定與全域狀態 (Global State) ---
-        const appVersion = "v2.4.0"; // 應用程式版本號
+        const appVersion = "v2.5.0"; // 應用程式版本號
         const currentView = ref('ledger');
         const settings = ref({ lang: 'zh', themeColor: '#4f46e5', fontSize: 'medium', darkMode: false });
         const user = ref(null);
@@ -563,7 +563,7 @@ createApp({
             if (isGlobalLoading.value) return;
             if (syncTimeout) clearTimeout(syncTimeout);
             syncTimeout = setTimeout(async () => {
-                if (!user.value) return;
+                if (!auth || !user.value || !db) return;
                 try {
                     await fb.setDoc(fb.doc(db, 'artifacts', appId, 'users', user.value.uid, 'appData', 'globalState'), { 
                         entries: JSON.stringify(entries.value), settings: settings.value, eventTypes: eventTypes.value, 
@@ -572,8 +572,8 @@ createApp({
                 } catch(e) {}
             }, 1000);
         };
-        const handleGoogleLogin = async () => { const p = new fb.GoogleAuthProvider(); try { await fb.signInWithPopup(auth, p); } catch(e) { showError("登入失敗"); } };
-        const handleLogout = async () => { await fb.signOut(auth); user.value = null; entries.value = {}; };
+        const handleGoogleLogin = async () => { if (!auth) { showError("Firebase 未初始化"); return; } const p = new fb.GoogleAuthProvider(); try { await fb.signInWithPopup(auth, p); } catch(e) { showError("登入失敗"); } };
+        const handleLogout = async () => { if (!auth) return; await fb.signOut(auth); user.value = null; entries.value = {}; };
 
         // --- 模塊 3：時間與日曆管理 (Time Management) ---
         const currentYear = ref(new Date().getFullYear());
@@ -997,24 +997,39 @@ createApp({
 
         // 生命週期與監聽
         onMounted(() => {
-            loadStockList();
-            const initAuth = async () => { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await fb.signInWithCustomToken(auth, __initial_auth_token); else await fb.signInAnonymously(auth); };
-            initAuth();
-            fb.onAuthStateChanged(auth, async (u) => {
-                user.value = u;
-                if (u) {
-                    const snap = await fb.getDoc(fb.doc(db, 'artifacts', appId, 'users', u.uid, 'appData', 'globalState'));
-                    if (snap.exists()) {
-                        const d = snap.data();
-                        if (d.entries) entries.value = JSON.parse(d.entries);
-                        if (d.settings) settings.value = { ...settings.value, ...d.settings };
-                        if (d.eventTypes) eventTypes.value = d.eventTypes;
-                        if (d.categories) categories.value = d.categories;
-                        if (d.stockPortfolio) stockPortfolio.value = d.stockPortfolio;
+            if (auth) {
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await fb.signInWithCustomToken(auth, __initial_auth_token); 
+                        else await fb.signInAnonymously(auth);
+                    } catch(e) {
+                        isGlobalLoading.value = false;
                     }
-                }
-                isGlobalLoading.value = false; updateIconsFn();
-            });
+                };
+                initAuth();
+                
+                fb.onAuthStateChanged(auth, async (u) => {
+                    user.value = u;
+                    if (u && db) {
+                        try {
+                            const snap = await fb.getDoc(fb.doc(db, 'artifacts', appId, 'users', u.uid, 'appData', 'globalState'));
+                            if (snap.exists()) {
+                                const d = snap.data();
+                                if (d.entries) entries.value = JSON.parse(d.entries);
+                                if (d.settings) settings.value = { ...settings.value, ...d.settings };
+                                if (d.eventTypes) eventTypes.value = d.eventTypes;
+                                if (d.categories) categories.value = d.categories;
+                                if (d.stockPortfolio) stockPortfolio.value = d.stockPortfolio;
+                            }
+                        } catch(e) {}
+                    }
+                    isGlobalLoading.value = false; updateIconsFn();
+                });
+            } else {
+                isGlobalLoading.value = false;
+                updateIconsFn();
+            }
+            loadStockList();
         });
 
         watch(() => settings.value.darkMode, (v) => document.documentElement.classList.toggle('dark', v), { immediate: true });
