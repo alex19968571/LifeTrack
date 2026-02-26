@@ -830,7 +830,7 @@ const translations = {
 
 const app = createApp({
     setup() {
-        const appVersion = "v3.3.1"; 
+        const appVersion = "v3.3.2"; 
         const currentView = ref('ledger');
         const settings = ref({ lang: 'zh', themeColor: '#4f46e5', fontSize: 'medium', darkMode: false });
         const user = ref(null);
@@ -920,9 +920,34 @@ const app = createApp({
 
         const fb = window.FirebaseSDK;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'lifetrack-pro';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        
+        // ★ MES 防呆機制：寫入你的專屬 Firebase Config 作為本地後備 (Fallback) ★
+        const localFirebaseConfig = {
+            apiKey: "AIzaSyAfP3W8GzVNxzaJAYE_bBjFuQEbsMff8MY",
+            authDomain: "lifetrack-f8c30.firebaseapp.com",
+            projectId: "lifetrack-f8c30",
+            storageBucket: "lifetrack-f8c30.firebasestorage.app",
+            messagingSenderId: "439295213397",
+            appId: "1:439295213397:web:f939cc43e08435fbb2b9dc",
+            measurementId: "G-JH7HZ7WMXF"
+        };
+
+        // 如果有外層環境變數就用外層的，否則採用你的專屬設定
+        const finalFirebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config) 
+            ? JSON.parse(__firebase_config) 
+            : localFirebaseConfig;
+
         let authObj, dbObj;
-        try { const fApp = fb.initializeApp(firebaseConfig); authObj = fb.getAuth(fApp); dbObj = fb.getFirestore(fApp); } catch(e) {}
+        try { 
+            if (Object.keys(finalFirebaseConfig).length === 0) {
+                throw new Error("Firebase 設定檔為空");
+            }
+            const fApp = fb.initializeApp(finalFirebaseConfig); 
+            authObj = fb.getAuth(fApp); 
+            dbObj = fb.getFirestore(fApp); 
+        } catch(e) {
+            console.error("[MES 系統日誌] 🔥 Firebase 初始化嚴重異常:", e);
+        }
         
         let unsubscribeLedgers = null;
         let unsubscribeEntries = null;
@@ -1411,7 +1436,6 @@ const app = createApp({
                     });
                 }
             });
-            // 排序，將新日期的紀錄排在上方
             return results.sort((a, b) => new Date(b.date) - new Date(a.date));
         });
 
@@ -1421,19 +1445,13 @@ const app = createApp({
         };
 
         const jumpToEdit = (dateStr) => {
-            // 解析日期並同步到主日曆狀態
             const [y, m, d] = dateStr.split('-').map(Number);
             currentYear.value = y;
-            currentMonth.value = m - 1; // 月份為 0-indexed
+            currentMonth.value = m - 1; 
             selectedDay.value = d;
-            
             showCategoryDetailModal.value = false;
             currentView.value = 'ledger';
-            
-            // 防呆：利用 nextTick 等待 Vue 將畫面切換至 ledger 後，再開啟編輯視窗，避免 DOM 尚未就緒
-            nextTick(() => {
-                openAddModal('finance');
-            });
+            nextTick(() => openAddModal('finance'));
         };
 
         const handleGoogleLogin = async () => { if (!authObj) { showError("Firebase 未初始化"); return; } const p = new fb.GoogleAuthProvider(); try { await fb.signInWithPopup(authObj, p); } catch(e) { showError("登入失敗"); } };
@@ -1455,10 +1473,6 @@ const app = createApp({
                                 if (d.settings) settings.value = { ...settings.value, ...d.settings };
                                 if (d.eventTypes) eventTypes.value = d.eventTypes;
                                 if (d.categories) categories.value = d.categories;
-                                
-                                if (d.entries) {
-                                    try { entries.value = JSON.parse(d.entries); } catch(e){}
-                                }
                             }
                             
                             const entriesQuery = fb.query(fb.collection(dbObj, 'artifacts', appId, 'users', u.uid, 'entries'));
@@ -1519,7 +1533,6 @@ const app = createApp({
             locationInput, isAudioPlaying, handleMultiPhotoUpload, handleAudioUpload, playAudio, stopAudio, addLocationToDiary, openGoogleMaps,
             previewState, replaceFileInput, openPreview, closePreview, deletePreviewImage, replacePreviewImage, onReplaceFileChange,
             currentPhotoIndex: ref(0), handlePhotoScroll: () => {}, 
-            // 導出明細功能與跳轉
             showCategoryDetailModal, selectedCategoryForDetail, categoryDetailRecords, jumpToCategoryDetails, jumpToEdit
         };
     }
